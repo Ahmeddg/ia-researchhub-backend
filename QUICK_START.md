@@ -91,7 +91,6 @@ The Swagger UI provides an interactive interface to test all API endpoints:
 
 | Resource | Create | Read | Update | Delete |
 |----------|--------|------|--------|--------|
-| Articles | POST | GET | PUT | DELETE |
 | Users | POST | GET | PUT | DELETE |
 | Roles | POST | GET | PUT | DELETE |
 | Researchers | POST | GET | PUT | DELETE |
