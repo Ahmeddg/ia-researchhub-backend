@@ -15,7 +15,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/publications")
-@CrossOrigin(origins = "*")
 @Tag(name = "Publication Management", description = "APIs for managing academic publications")
 public class PublicationController {
 

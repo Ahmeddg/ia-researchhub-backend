@@ -16,7 +16,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/news")
-@CrossOrigin(origins = "*")
 @Tag(name = "News Management", description = "APIs for managing news articles")
 public class NewsController {
 

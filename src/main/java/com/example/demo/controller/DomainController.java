@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
+
 @RestController
 @RequestMapping("/api/domains")
-@CrossOrigin(origins = "*")
 @Tag(name = "Domain Management", description = "APIs for managing research domains")
 public class DomainController {
 

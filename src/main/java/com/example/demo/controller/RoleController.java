@@ -15,7 +15,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/roles")
-@CrossOrigin(origins = "*")
 @Tag(name = "Role Management", description = "APIs for managing user roles")
 public class RoleController {
 

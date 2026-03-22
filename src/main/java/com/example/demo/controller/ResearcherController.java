@@ -15,7 +15,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/researchers")
-@CrossOrigin(origins = "*")
 @Tag(name = "Researcher Management", description = "APIs for managing researchers")
 public class ResearcherController {
 
