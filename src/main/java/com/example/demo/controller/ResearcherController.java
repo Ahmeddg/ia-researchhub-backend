@@ -1,114 +1,83 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Researcher;
-import com.example.demo.repository.ResearcherRepository;
+import com.example.demo.service.ResearcherService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/researchers")
 @Tag(name = "Researcher Management", description = "APIs for managing researchers")
 public class ResearcherController {
 
+    private final ResearcherService researcherService;
+
     @Autowired
-    private ResearcherRepository researcherRepository;
+    public ResearcherController(ResearcherService researcherService) {
+        this.researcherService = researcherService;
+    }
 
     @PostMapping
     @Operation(summary = "Create a new researcher")
-    public ResponseEntity<Researcher> createResearcher(@RequestBody Researcher researcher) {
-        try {
-            Researcher savedResearcher = researcherRepository.save(researcher);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedResearcher);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity<Researcher> createResearcher(@Valid @RequestBody Researcher researcher) {
+        Researcher savedResearcher = researcherService.create(researcher);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedResearcher);
     }
 
     @GetMapping
     @Operation(summary = "Get all researchers")
     public ResponseEntity<List<Researcher>> getAllResearchers() {
-        try {
-            List<Researcher> researchers = researcherRepository.findAll();
-            return ResponseEntity.ok(researchers);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Researcher> researchers = researcherService.findAll();
+        return ResponseEntity.ok(researchers);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get researcher by ID")
-    public ResponseEntity<Researcher> getResearcherById(@PathVariable @Parameter(description = "Researcher ID") Long id) {
-        try {
-            Optional<Researcher> researcher = researcherRepository.findById(id);
-            return researcher.map(ResponseEntity::ok)
-                    .orElseGet(() -> ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity<Researcher> getResearcherById(
+            @PathVariable @Parameter(description = "Researcher ID") Long id) {
+        return researcherService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/email/{email}")
     @Operation(summary = "Get researcher by email")
-    public ResponseEntity<Researcher> getResearcherByEmail(@PathVariable @Parameter(description = "Email address") String email) {
-        try {
-            Optional<Researcher> researcher = researcherRepository.findByEmail(email);
-            return researcher.map(ResponseEntity::ok)
-                    .orElseGet(() -> ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity<Researcher> getResearcherByEmail(
+            @PathVariable @Parameter(description = "Email address") String email) {
+        return researcherService.findByEmail(email)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/affiliation/{affiliation}")
+    @Operation(summary = "Get researchers by affiliation")
+    public ResponseEntity<List<Researcher>> getResearchersByAffiliation(
+            @PathVariable @Parameter(description = "Affiliation") String affiliation) {
+        List<Researcher> researchers = researcherService.findByAffiliation(affiliation);
+        return ResponseEntity.ok(researchers);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a researcher")
-    public ResponseEntity<Researcher> updateResearcher(@PathVariable @Parameter(description = "Researcher ID") Long id,
-                                                      @RequestBody Researcher researcherDetails) {
-        try {
-            Optional<Researcher> researcher = researcherRepository.findById(id);
-            if (researcher.isPresent()) {
-                Researcher existingResearcher = researcher.get();
-                if (researcherDetails.getFullName() != null) {
-                    existingResearcher.setFullName(researcherDetails.getFullName());
-                }
-                if (researcherDetails.getEmail() != null) {
-                    existingResearcher.setEmail(researcherDetails.getEmail());
-                }
-                if (researcherDetails.getAffiliation() != null) {
-                    existingResearcher.setAffiliation(researcherDetails.getAffiliation());
-                }
-                if (researcherDetails.getBiography() != null) {
-                    existingResearcher.setBiography(researcherDetails.getBiography());
-                }
-                Researcher updatedResearcher = researcherRepository.save(existingResearcher);
-                return ResponseEntity.ok(updatedResearcher);
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity<Researcher> updateResearcher(
+            @PathVariable @Parameter(description = "Researcher ID") Long id,
+            @Valid @RequestBody Researcher researcherDetails) {
+        Researcher updatedResearcher = researcherService.update(id, researcherDetails);
+        return ResponseEntity.ok(updatedResearcher);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a researcher by ID")
     public ResponseEntity<Void> deleteResearcher(@PathVariable @Parameter(description = "Researcher ID") Long id) {
-        try {
-            if (researcherRepository.existsById(id)) {
-                researcherRepository.deleteById(id);
-                return ResponseEntity.noContent().build();
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        researcherService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

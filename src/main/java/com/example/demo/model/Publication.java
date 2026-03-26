@@ -1,6 +1,9 @@
 package com.example.demo.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
@@ -12,9 +15,12 @@ public class Publication {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Title is required")
+    @Size(min = 2, max = 500, message = "Title must be between 2 and 500 characters")
     @Column(nullable = false)
     private String title;
 
+    @Size(max = 5000, message = "Abstract must not exceed 5000 characters")
     @Column(length = 5000)
     private String abstractText;
 
@@ -27,14 +33,13 @@ public class Publication {
     @Column(unique = true)
     private String doi;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @NotNull(message = "Domain is required")
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "domain_id", nullable = false)
     private Domain domain;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "publication_researchers",
-            joinColumns = @JoinColumn(name = "publication_id"),
-            inverseJoinColumns = @JoinColumn(name = "researcher_id"))
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "publication_researchers", joinColumns = @JoinColumn(name = "publication_id"), inverseJoinColumns = @JoinColumn(name = "researcher_id"))
     private Set<Researcher> researchers = new HashSet<>();
 
     public Publication() {

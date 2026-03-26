@@ -1,126 +1,81 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Project;
-import com.example.demo.repository.ProjectRepository;
+import com.example.demo.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/projects")
 @Tag(name = "Project Management", description = "APIs for managing research projects")
 public class ProjectController {
 
+    private final ProjectService projectService;
+
     @Autowired
-    private ProjectRepository projectRepository;
+    public ProjectController(ProjectService projectService) {
+        this.projectService = projectService;
+    }
 
     @PostMapping
     @Operation(summary = "Create a new project")
-    public ResponseEntity<Project> createProject(@RequestBody Project project) {
-        try {
-            Project savedProject = projectRepository.save(project);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedProject);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity<Project> createProject(@Valid @RequestBody Project project) {
+        Project savedProject = projectService.create(project);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedProject);
     }
 
     @GetMapping
     @Operation(summary = "Get all projects")
     public ResponseEntity<List<Project>> getAllProjects() {
-        try {
-            List<Project> projects = projectRepository.findAll();
-            return ResponseEntity.ok(projects);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Project> projects = projectService.findAll();
+        return ResponseEntity.ok(projects);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get project by ID")
     public ResponseEntity<Project> getProjectById(@PathVariable @Parameter(description = "Project ID") Long id) {
-        try {
-            Optional<Project> project = projectRepository.findById(id);
-            return project.map(ResponseEntity::ok)
-                    .orElseGet(() -> ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        return projectService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/domain/{domainId}")
     @Operation(summary = "Get projects by domain ID")
     public ResponseEntity<List<Project>> getProjectsByDomain(
             @PathVariable @Parameter(description = "Domain ID") Long domainId) {
-        try {
-            List<Project> projects = projectRepository.findByDomainId(domainId);
-            return ResponseEntity.ok(projects);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Project> projects = projectService.findByDomainId(domainId);
+        return ResponseEntity.ok(projects);
     }
 
     @GetMapping("/category/{aiCategory}")
     @Operation(summary = "Get projects by AI category")
     public ResponseEntity<List<Project>> getProjectsByAiCategory(
             @PathVariable @Parameter(description = "AI Category") String aiCategory) {
-        try {
-            List<Project> projects = projectRepository.findByAiCategory(aiCategory);
-            return ResponseEntity.ok(projects);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Project> projects = projectService.findByAiCategory(aiCategory);
+        return ResponseEntity.ok(projects);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a project")
-    public ResponseEntity<Project> updateProject(@PathVariable @Parameter(description = "Project ID") Long id,
-                                                @RequestBody Project projectDetails) {
-        try {
-            Optional<Project> project = projectRepository.findById(id);
-            if (project.isPresent()) {
-                Project existingProject = project.get();
-                if (projectDetails.getTitle() != null) {
-                    existingProject.setTitle(projectDetails.getTitle());
-                }
-                if (projectDetails.getDescription() != null) {
-                    existingProject.setDescription(projectDetails.getDescription());
-                }
-                if (projectDetails.getAiCategory() != null) {
-                    existingProject.setAiCategory(projectDetails.getAiCategory());
-                }
-                if (projectDetails.getDomain() != null) {
-                    existingProject.setDomain(projectDetails.getDomain());
-                }
-                Project updatedProject = projectRepository.save(existingProject);
-                return ResponseEntity.ok(updatedProject);
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity<Project> updateProject(
+            @PathVariable @Parameter(description = "Project ID") Long id,
+            @Valid @RequestBody Project projectDetails) {
+        Project updatedProject = projectService.update(id, projectDetails);
+        return ResponseEntity.ok(updatedProject);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a project by ID")
     public ResponseEntity<Void> deleteProject(@PathVariable @Parameter(description = "Project ID") Long id) {
-        try {
-            if (projectRepository.existsById(id)) {
-                projectRepository.deleteById(id);
-                return ResponseEntity.noContent().build();
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        projectService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

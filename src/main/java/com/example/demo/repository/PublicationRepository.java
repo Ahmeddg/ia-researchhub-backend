@@ -9,5 +9,10 @@ import java.util.Optional;
 @Repository
 public interface PublicationRepository extends JpaRepository<Publication, Long> {
     List<Publication> findByDomainId(Long domainId);
+
     Optional<Publication> findByDoi(String doi);
+
+    List<Publication> findByResearchersId(Long researcherId);
+
+    long countByDomainId(Long domainId);
 }

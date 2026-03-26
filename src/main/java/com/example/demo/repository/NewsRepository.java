@@ -8,4 +8,6 @@ import java.util.List;
 @Repository
 public interface NewsRepository extends JpaRepository<News, Long> {
     List<News> findByUserId(Long userId);
+
+    List<News> findAllByOrderByCreatedAtDesc();
 }

@@ -1,6 +1,9 @@
 package com.example.demo.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "projects")
@@ -9,16 +12,22 @@ public class Project {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Title is required")
+    @Size(min = 2, max = 200, message = "Title must be between 2 and 200 characters")
     @Column(nullable = false)
     private String title;
 
+    @Size(max = 2000, message = "Description must not exceed 2000 characters")
     @Column(length = 2000)
     private String description;
 
+    @NotBlank(message = "AI category is required")
+    @Size(max = 100, message = "AI category must not exceed 100 characters")
     @Column(name = "ai_category", nullable = false)
     private String aiCategory;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @NotNull(message = "Domain is required")
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "domain_id", nullable = false)
     private Domain domain;
 
