@@ -4,7 +4,7 @@ import com.example.demo.dto.UserResponse;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Role;
 import com.example.demo.model.User;
-import com.example.demo.repository.RoleRepository;
+import com.example.demo.service.RoleService;
 import com.example.demo.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,13 +28,13 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
-    private final RoleRepository roleRepository;
+    private final RoleService roleService;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserController(UserService userService, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
+    public UserController(UserService userService, RoleService roleService, PasswordEncoder passwordEncoder) {
         this.userService = userService;
-        this.roleRepository = roleRepository;
+        this.roleService = roleService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -145,7 +145,7 @@ public class UserController {
         // Clear existing roles and add new ones
         user.getRoles().clear();
         for (String roleName : roleNames) {
-            Role role = roleRepository.findByName(roleName)
+            Role role = roleService.findByName(roleName)
                     .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleName));
             user.addRole(role);
         }
