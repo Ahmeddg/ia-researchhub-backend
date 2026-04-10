@@ -2,10 +2,10 @@
 -- This script populates the database with sample data for testing
 
 -- Insert Roles
-INSERT INTO roles (name) VALUES ('ROLE_ADMIN');
-INSERT INTO roles (name) VALUES ('ROLE_USER');
-INSERT INTO roles (name) VALUES ('ROLE_EDITOR');
-INSERT INTO roles (name) VALUES ('ROLE_RESEARCHER');
+INSERT INTO roles (name) VALUES ('ADMIN');
+INSERT INTO roles (name) VALUES ('USER');
+INSERT INTO roles (name) VALUES ('MODERATEUR');
+INSERT INTO roles (name) VALUES ('CHERCHEUR');
 
 -- Insert Users
 INSERT INTO users (username, email, password, enabled) VALUES 
@@ -17,13 +17,13 @@ INSERT INTO users (username, email, password, enabled) VALUES
 
 -- Insert User-Role relationships
 INSERT INTO user_roles (user_id, role_id) VALUES 
-(1, 1), -- admin -> ROLE_ADMIN
-(1, 2), -- admin -> ROLE_USER
-(2, 2), -- john_doe -> ROLE_USER
-(2, 3), -- john_doe -> ROLE_EDITOR
-(3, 2), -- jane_smith -> ROLE_USER
-(4, 2), -- mike_wilson -> ROLE_USER
-(5, 2); -- sarah_jones -> ROLE_USER
+(1, 1), -- admin -> ADMIN
+(1, 2), -- admin -> USER
+(2, 2), -- john_doe -> USER
+(2, 3), -- john_doe -> MODERATEUR
+(3, 2), -- jane_smith -> USER
+(4, 2), -- mike_wilson -> USER
+(5, 2); -- sarah_jones -> USER
 
 -- Insert Researchers
 INSERT INTO researchers (full_name, email, affiliation, biography) VALUES 

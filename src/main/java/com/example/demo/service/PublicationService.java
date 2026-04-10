@@ -17,6 +17,8 @@ public interface PublicationService {
 
     List<Publication> findByResearcherId(Long researcherId);
 
+    List<Publication> findByCreatedByUsername(String username);
+
     Publication update(Long id, Publication publicationDetails);
 
     void delete(Long id);
@@ -26,4 +28,6 @@ public interface PublicationService {
     long count();
 
     long countByDomainId(Long domainId);
+
+    boolean isOwner(Long publicationId, String username);
 }

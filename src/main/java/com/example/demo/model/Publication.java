@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -41,6 +42,11 @@ public class Publication {
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "publication_researchers", joinColumns = @JoinColumn(name = "publication_id"), inverseJoinColumns = @JoinColumn(name = "researcher_id"))
     private Set<Researcher> researchers = new HashSet<>();
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "created_by")
+    @JsonIgnore
+    private User createdBy;
 
     public Publication() {
     }
@@ -121,5 +127,13 @@ public class Publication {
 
     public void removeResearcher(Researcher researcher) {
         this.researchers.remove(researcher);
+    }
+
+    public User getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(User createdBy) {
+        this.createdBy = createdBy;
     }
 }

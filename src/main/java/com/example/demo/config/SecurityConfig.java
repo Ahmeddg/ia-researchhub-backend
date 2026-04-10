@@ -66,20 +66,23 @@ public class SecurityConfig {
                         // Public GET endpoints - anonymous can view
                         .requestMatchers(HttpMethod.GET, "/api/statistics/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/news/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/publications/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/publications/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/researchers/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/projects/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/researchers/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/projects/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/projects/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/domains/**").permitAll()
 
                         // User profile - any authenticated user
                         .requestMatchers("/api/users/me").authenticated()
 
-                        // Content management - MODERATEUR, CHERCHEUR, ADMIN
-                        .requestMatchers(HttpMethod.POST, "/api/news/**").hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/news/**").hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        // Content management - MODERATEUR, ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/news/**").hasAnyRole("MODERATEUR", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/news/**").hasAnyRole("MODERATEUR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/news/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATEUR", "ADMIN")
 
+                        // Publications - MODERATEUR, CHERCHEUR, ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/publications/**")
                         .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/publications/**")
@@ -95,33 +98,40 @@ public class SecurityConfig {
                         .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
 
                         .requestMatchers(HttpMethod.POST, "/api/domains/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATEUR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/domains/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATEUR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/domains/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATEUR", "ADMIN")
 
                         .requestMatchers(HttpMethod.POST, "/api/researchers/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATEUR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/researchers/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATEUR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/researchers/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATEUR", "ADMIN")
 
-                        // User management - CHERCHEUR, ADMIN only
-                        .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("CHERCHEUR", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/users/**").hasAnyRole("CHERCHEUR", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/users/**").hasAnyRole("CHERCHEUR", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasAnyRole("CHERCHEUR", "ADMIN")
+                        // User management - ADMIN only
+                        .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
 
-                        // Role assignment - CHERCHEUR, ADMIN only
-                        .requestMatchers("/api/users/*/roles").hasAnyRole("CHERCHEUR", "ADMIN")
+                        // Role assignment - ADMIN only
+                        .requestMatchers("/api/users/*/roles").hasRole("ADMIN")
 
-                        // Role management (create/delete roles) - ADMIN only
+                        // Role management - ADMIN only
                         .requestMatchers(HttpMethod.POST, "/api/roles/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/roles/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/roles/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/roles/**").hasAnyRole("CHERCHEUR", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/roles/**").hasRole("ADMIN")
+
+                        // Researcher role request workflow
+                        .requestMatchers(HttpMethod.POST, "/api/researcher-requests").hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/api/researcher-requests/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/researcher-requests/pending").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/researcher-requests/*/approve").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/researcher-requests/*/reject").hasRole("ADMIN")
 
                         // All other requests need authentication
                         .anyRequest().authenticated())

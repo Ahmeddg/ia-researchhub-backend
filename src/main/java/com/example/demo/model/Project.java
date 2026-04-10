@@ -1,9 +1,13 @@
 package com.example.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "projects")
@@ -30,6 +34,15 @@ public class Project {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "domain_id", nullable = false)
     private Domain domain;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "project_researchers", joinColumns = @JoinColumn(name = "project_id"), inverseJoinColumns = @JoinColumn(name = "researcher_id"))
+    private Set<Researcher> researchers = new HashSet<>();
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "created_by")
+    @JsonIgnore
+    private User createdBy;
 
     public Project() {
     }
@@ -79,5 +92,29 @@ public class Project {
 
     public void setDomain(Domain domain) {
         this.domain = domain;
+    }
+
+    public Set<Researcher> getResearchers() {
+        return researchers;
+    }
+
+    public void setResearchers(Set<Researcher> researchers) {
+        this.researchers = researchers;
+    }
+
+    public void addResearcher(Researcher researcher) {
+        this.researchers.add(researcher);
+    }
+
+    public void removeResearcher(Researcher researcher) {
+        this.researchers.remove(researcher);
+    }
+
+    public User getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(User createdBy) {
+        this.createdBy = createdBy;
     }
 }

@@ -2,10 +2,10 @@
 -- This file will be automatically loaded by Spring Data JPA on application startup
 -- Uses ON CONFLICT DO NOTHING for idempotent execution
 
-INSERT INTO roles (name) VALUES ('ROLE_ADMIN') ON CONFLICT DO NOTHING;
-INSERT INTO roles (name) VALUES ('ROLE_USER') ON CONFLICT DO NOTHING;
-INSERT INTO roles (name) VALUES ('ROLE_EDITOR') ON CONFLICT DO NOTHING;
-INSERT INTO roles (name) VALUES ('ROLE_RESEARCHER') ON CONFLICT DO NOTHING;
+INSERT INTO roles (name) VALUES ('ADMIN') ON CONFLICT DO NOTHING;
+INSERT INTO roles (name) VALUES ('USER') ON CONFLICT DO NOTHING;
+INSERT INTO roles (name) VALUES ('MODERATEUR') ON CONFLICT DO NOTHING;
+INSERT INTO roles (name) VALUES ('CHERCHEUR') ON CONFLICT DO NOTHING;
 
 INSERT INTO users (username, email, password, enabled) VALUES 
 ('admin', 'admin@example.com', 'admin123', true) ON CONFLICT DO NOTHING;

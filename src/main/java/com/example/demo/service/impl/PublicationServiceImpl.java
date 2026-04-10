@@ -58,6 +58,12 @@ public class PublicationServiceImpl implements PublicationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Publication> findByCreatedByUsername(String username) {
+        return publicationRepository.findByCreatedByUsername(username);
+    }
+
+    @Override
     public Publication update(Long id, Publication publicationDetails) {
         Publication existingPublication = publicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Publication", "id", id));
@@ -111,5 +117,11 @@ public class PublicationServiceImpl implements PublicationService {
     @Transactional(readOnly = true)
     public long countByDomainId(Long domainId) {
         return publicationRepository.countByDomainId(domainId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isOwner(Long publicationId, String username) {
+        return publicationRepository.existsByIdAndCreatedByUsername(publicationId, username);
     }
 }

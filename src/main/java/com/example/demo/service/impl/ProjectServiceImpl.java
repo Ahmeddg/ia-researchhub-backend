@@ -52,6 +52,12 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Project> findByCreatedByUsername(String username) {
+        return projectRepository.findByCreatedByUsername(username);
+    }
+
+    @Override
     public Project update(Long id, Project projectDetails) {
         Project existingProject = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
@@ -67,6 +73,9 @@ public class ProjectServiceImpl implements ProjectService {
         }
         if (projectDetails.getDomain() != null) {
             existingProject.setDomain(projectDetails.getDomain());
+        }
+        if (projectDetails.getResearchers() != null) {
+            existingProject.setResearchers(projectDetails.getResearchers());
         }
 
         return projectRepository.save(existingProject);
@@ -96,5 +105,11 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional(readOnly = true)
     public long countByAiCategory(String aiCategory) {
         return projectRepository.countByAiCategory(aiCategory);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isOwner(Long projectId, String username) {
+        return projectRepository.existsByIdAndCreatedByUsername(projectId, username);
     }
 }

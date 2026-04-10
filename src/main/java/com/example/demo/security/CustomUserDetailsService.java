@@ -36,7 +36,11 @@ public class CustomUserDetailsService implements UserDetailsService {
                 true, // credentialsNonExpired
                 true, // accountNonLocked
                 user.getRoles().stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
+                        .map(role -> {
+                                String roleName = role.getName();
+                                String authority = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName;
+                                return new SimpleGrantedAuthority(authority);
+                        })
                         .collect(Collectors.toList()));
     }
 

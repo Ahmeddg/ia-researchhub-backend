@@ -14,5 +14,9 @@ public interface PublicationRepository extends JpaRepository<Publication, Long> 
 
     List<Publication> findByResearchersId(Long researcherId);
 
+    List<Publication> findByCreatedByUsername(String username);
+
+    boolean existsByIdAndCreatedByUsername(Long id, String username);
+
     long countByDomainId(Long domainId);
 }
