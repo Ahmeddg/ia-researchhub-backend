@@ -56,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String token = jwtTokenProvider.generateToken(authentication);
 
-        User user = userRepository.findByUsername(loginRequest.getUsername())
+        User user = userRepository.findByUsernameOrEmail(loginRequest.getUsername(), loginRequest.getUsername())
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
         Set<String> roles = user.getRoles().stream()

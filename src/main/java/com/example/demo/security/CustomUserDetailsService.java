@@ -24,9 +24,9 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
+        User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail));
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
@@ -45,8 +45,8 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     @Transactional(readOnly = true)
-    public User loadUserEntityByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+    public User loadUserEntityByUsername(String usernameOrEmail) {
+        return userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail));
     }
 }
