@@ -62,16 +62,16 @@ public class ResearcherRoleRequestController {
     }
 
     @PostMapping("/{id}/approve")
-    @Operation(summary = "Approve researcher role request (ADMIN)")
-    public ResponseEntity<ResearcherRoleRequestResponse> approve(@PathVariable Long id) {
+    @Operation(summary = "Approve a researcher role request")
+    public ResponseEntity<ResearcherRoleRequestResponse> approve(@PathVariable("id") Long id) {
         String adminUsername = currentUsername();
         ResearcherRoleRequest approved = requestService.approveRequest(id, adminUsername);
         return ResponseEntity.ok(toResponse(approved));
     }
 
     @PostMapping("/{id}/reject")
-    @Operation(summary = "Reject researcher role request (ADMIN)")
-    public ResponseEntity<ResearcherRoleRequestResponse> reject(@PathVariable Long id) {
+    @Operation(summary = "Reject a researcher role request")
+    public ResponseEntity<ResearcherRoleRequestResponse> reject(@PathVariable("id") Long id) {
         String adminUsername = currentUsername();
         ResearcherRoleRequest rejected = requestService.rejectRequest(id, adminUsername);
         return ResponseEntity.ok(toResponse(rejected));

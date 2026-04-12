@@ -61,6 +61,30 @@ public class NewsServiceImpl implements NewsService {
         if (newsDetails.getContent() != null) {
             existingNews.setContent(newsDetails.getContent());
         }
+        if (newsDetails.getCategory() != null) {
+            existingNews.setCategory(newsDetails.getCategory());
+        }
+        if (newsDetails.getExcerpt() != null) {
+            existingNews.setExcerpt(newsDetails.getExcerpt());
+        }
+        if (newsDetails.getImageUrl() != null) {
+            existingNews.setImageUrl(newsDetails.getImageUrl());
+        }
+        if (newsDetails.getReadTime() != null) {
+            existingNews.setReadTime(newsDetails.getReadTime());
+        }
+        if (newsDetails.getFeatured() != null) {
+            existingNews.setFeatured(newsDetails.getFeatured());
+        }
+        if (newsDetails.getTags() != null) {
+            existingNews.setTags(newsDetails.getTags());
+        }
+        if (newsDetails.getAuthor() != null) {
+            existingNews.setAuthor(newsDetails.getAuthor());
+        }
+        if (newsDetails.getPublishedAt() != null) {
+            existingNews.setPublishedAt(newsDetails.getPublishedAt());
+        }
         if (newsDetails.getUser() != null) {
             existingNews.setUser(newsDetails.getUser());
         }

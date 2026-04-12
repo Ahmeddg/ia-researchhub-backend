@@ -41,7 +41,7 @@ public class RoleController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get role by ID")
-    public ResponseEntity<Role> getRoleById(@PathVariable @Parameter(description = "Role ID") Long id) {
+    public ResponseEntity<Role> getRoleById(@PathVariable("id") @Parameter(description = "Role ID") Long id) {
         return roleService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -49,7 +49,7 @@ public class RoleController {
 
     @GetMapping("/name/{name}")
     @Operation(summary = "Get role by name")
-    public ResponseEntity<Role> getRoleByName(@PathVariable @Parameter(description = "Role name") String name) {
+    public ResponseEntity<Role> getRoleByName(@PathVariable("name") @Parameter(description = "Role name") String name) {
         return roleService.findByName(name)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -58,7 +58,7 @@ public class RoleController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a role")
     public ResponseEntity<Role> updateRole(
-            @PathVariable @Parameter(description = "Role ID") Long id,
+            @PathVariable("id") @Parameter(description = "Role ID") Long id,
             @Valid @RequestBody Role roleDetails) {
         Role updatedRole = roleService.update(id, roleDetails);
         return ResponseEntity.ok(updatedRole);
@@ -66,7 +66,7 @@ public class RoleController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a role by ID")
-    public ResponseEntity<Void> deleteRole(@PathVariable @Parameter(description = "Role ID") Long id) {
+    public ResponseEntity<Void> deleteRole(@PathVariable("id") @Parameter(description = "Role ID") Long id) {
         roleService.delete(id);
         return ResponseEntity.noContent().build();
     }

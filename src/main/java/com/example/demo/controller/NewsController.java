@@ -41,7 +41,7 @@ public class NewsController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get news article by ID")
-    public ResponseEntity<News> getNewsById(@PathVariable @Parameter(description = "News ID") Long id) {
+    public ResponseEntity<News> getNewsById(@PathVariable("id") @Parameter(description = "News ID") Long id) {
         return newsService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -58,7 +58,7 @@ public class NewsController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a news article")
     public ResponseEntity<News> updateNews(
-            @PathVariable @Parameter(description = "News ID") Long id,
+            @PathVariable("id") @Parameter(description = "News ID") Long id,
             @Valid @RequestBody News newsDetails) {
         News updatedNews = newsService.update(id, newsDetails);
         return ResponseEntity.ok(updatedNews);
@@ -66,7 +66,7 @@ public class NewsController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a news article by ID")
-    public ResponseEntity<Void> deleteNews(@PathVariable @Parameter(description = "News ID") Long id) {
+    public ResponseEntity<Void> deleteNews(@PathVariable("id") @Parameter(description = "News ID") Long id) {
         newsService.delete(id);
         return ResponseEntity.noContent().build();
     }

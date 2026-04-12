@@ -41,7 +41,7 @@ public class DomainController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get domain by ID")
-    public ResponseEntity<Domain> getDomainById(@PathVariable @Parameter(description = "Domain ID") Long id) {
+    public ResponseEntity<Domain> getDomainById(@PathVariable("id") @Parameter(description = "Domain ID") Long id) {
         return domainService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -49,7 +49,7 @@ public class DomainController {
 
     @GetMapping("/name/{name}")
     @Operation(summary = "Get domain by name")
-    public ResponseEntity<Domain> getDomainByName(@PathVariable @Parameter(description = "Domain name") String name) {
+    public ResponseEntity<Domain> getDomainByName(@PathVariable("name") @Parameter(description = "Domain name") String name) {
         return domainService.findByName(name)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -58,7 +58,7 @@ public class DomainController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a domain")
     public ResponseEntity<Domain> updateDomain(
-            @PathVariable @Parameter(description = "Domain ID") Long id,
+            @PathVariable("id") @Parameter(description = "Domain ID") Long id,
             @Valid @RequestBody Domain domainDetails) {
         Domain updatedDomain = domainService.update(id, domainDetails);
         return ResponseEntity.ok(updatedDomain);
@@ -66,7 +66,7 @@ public class DomainController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a domain by ID")
-    public ResponseEntity<Void> deleteDomain(@PathVariable @Parameter(description = "Domain ID") Long id) {
+    public ResponseEntity<Void> deleteDomain(@PathVariable("id") @Parameter(description = "Domain ID") Long id) {
         domainService.delete(id);
         return ResponseEntity.noContent().build();
     }

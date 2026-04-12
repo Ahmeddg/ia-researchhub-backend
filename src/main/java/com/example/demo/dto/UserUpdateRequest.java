@@ -1,33 +1,15 @@
 package com.example.demo.dto;
 
 import java.util.Set;
-import com.example.demo.model.Role;
 
-public class UserResponse {
-
-    private Long id;
+public class UserUpdateRequest {
     private String username;
     private String email;
+    private String password;
     private boolean enabled;
-    private Set<Role> roles;
+    private Set<String> roles;
 
-    public UserResponse() {
-    }
-
-    public UserResponse(Long id, String username, String email, boolean enabled, Set<Role> roles) {
-        this.id = id;
-        this.username = username;
-        this.email = email;
-        this.enabled = enabled;
-        this.roles = roles;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
+    public UserUpdateRequest() {
     }
 
     public String getUsername() {
@@ -46,6 +28,14 @@ public class UserResponse {
         this.email = email;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -54,11 +44,11 @@ public class UserResponse {
         this.enabled = enabled;
     }
 
-    public Set<Role> getRoles() {
+    public Set<String> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Set<String> roles) {
         this.roles = roles;
     }
 }

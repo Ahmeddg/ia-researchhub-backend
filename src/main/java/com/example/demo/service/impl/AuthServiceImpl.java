@@ -60,7 +60,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
         Set<String> roles = user.getRoles().stream()
-                .map(Role::getName)
+                .map(r -> r.getName().startsWith("ROLE_") ? r.getName() : "ROLE_" + r.getName())
                 .collect(Collectors.toSet());
 
         return new AuthResponse(token, user.getId(), user.getUsername(), user.getEmail(), roles);

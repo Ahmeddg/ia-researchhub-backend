@@ -31,6 +31,33 @@ public class News {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Size(max = 100)
+    @Column(name = "category")
+    private String category;
+
+    @Size(max = 500)
+    @Column(length = 500)
+    private String excerpt;
+
+    @Size(max = 2000)
+    @Column(name = "image_url", length = 2000)
+    private String imageUrl;
+
+    @Column(name = "read_time")
+    private Integer readTime;
+
+    private Boolean featured;
+
+    @Column(length = 2000)
+    private String tags;
+
+    @Size(max = 200)
+    @Column(length = 200)
+    private String author;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
     public News() {
     }
 
@@ -79,5 +106,69 @@ public class News {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getExcerpt() {
+        return excerpt;
+    }
+
+    public void setExcerpt(String excerpt) {
+        this.excerpt = excerpt;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public Integer getReadTime() {
+        return readTime;
+    }
+
+    public void setReadTime(Integer readTime) {
+        this.readTime = readTime;
+    }
+
+    public Boolean getFeatured() {
+        return featured;
+    }
+
+    public void setFeatured(Boolean featured) {
+        this.featured = featured;
+    }
+
+    public String getTags() {
+        return tags;
+    }
+
+    public void setTags(String tags) {
+        this.tags = tags;
+    }
+
+    public String getAuthor() {
+        return author;
+    }
+
+    public void setAuthor(String author) {
+        this.author = author;
+    }
+
+    public LocalDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(LocalDateTime publishedAt) {
+        this.publishedAt = publishedAt;
     }
 }

@@ -75,7 +75,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/projects/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/domains/**").permitAll()
 
-                        // User profile - any authenticated user
+                        // User profile - any authenticated user (must come before general /api/users rules)
                         .requestMatchers("/api/users/me").authenticated()
 
                         // Content management - MODERATEUR, ADMIN
@@ -113,14 +113,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/researchers/**")
                         .hasAnyRole("MODERATEUR", "ADMIN")
 
-                        // User management - ADMIN only
+                        // Role assignment - ADMIN only
+                        .requestMatchers("/api/users/*/roles").hasRole("ADMIN")
+
+                        // User management - ADMIN only (General pattern last)
                         .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
-
-                        // Role assignment - ADMIN only
-                        .requestMatchers("/api/users/*/roles").hasRole("ADMIN")
 
                         // Role management - ADMIN only
                         .requestMatchers(HttpMethod.POST, "/api/roles/**").hasRole("ADMIN")

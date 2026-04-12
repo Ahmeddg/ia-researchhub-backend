@@ -42,7 +42,7 @@ public class ResearcherController {
     @GetMapping("/{id}")
     @Operation(summary = "Get researcher by ID")
     public ResponseEntity<Researcher> getResearcherById(
-            @PathVariable @Parameter(description = "Researcher ID") Long id) {
+            @PathVariable("id") @Parameter(description = "Researcher ID") Long id) {
         return researcherService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -51,7 +51,7 @@ public class ResearcherController {
     @GetMapping("/email/{email}")
     @Operation(summary = "Get researcher by email")
     public ResponseEntity<Researcher> getResearcherByEmail(
-            @PathVariable @Parameter(description = "Email address") String email) {
+            @PathVariable("email") @Parameter(description = "Email address") String email) {
         return researcherService.findByEmail(email)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -60,7 +60,7 @@ public class ResearcherController {
     @GetMapping("/affiliation/{affiliation}")
     @Operation(summary = "Get researchers by affiliation")
     public ResponseEntity<List<Researcher>> getResearchersByAffiliation(
-            @PathVariable @Parameter(description = "Affiliation") String affiliation) {
+            @PathVariable("affiliation") @Parameter(description = "Affiliation") String affiliation) {
         List<Researcher> researchers = researcherService.findByAffiliation(affiliation);
         return ResponseEntity.ok(researchers);
     }
@@ -68,7 +68,7 @@ public class ResearcherController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a researcher")
     public ResponseEntity<Researcher> updateResearcher(
-            @PathVariable @Parameter(description = "Researcher ID") Long id,
+            @PathVariable("id") @Parameter(description = "Researcher ID") Long id,
             @Valid @RequestBody Researcher researcherDetails) {
         Researcher updatedResearcher = researcherService.update(id, researcherDetails);
         return ResponseEntity.ok(updatedResearcher);
@@ -76,7 +76,7 @@ public class ResearcherController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a researcher by ID")
-    public ResponseEntity<Void> deleteResearcher(@PathVariable @Parameter(description = "Researcher ID") Long id) {
+    public ResponseEntity<Void> deleteResearcher(@PathVariable("id") @Parameter(description = "Researcher ID") Long id) {
         researcherService.delete(id);
         return ResponseEntity.noContent().build();
     }

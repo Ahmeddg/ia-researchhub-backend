@@ -67,7 +67,7 @@ public class ProjectController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get project by ID")
-    public ResponseEntity<Project> getProjectById(@PathVariable @Parameter(description = "Project ID") Long id) {
+    public ResponseEntity<Project> getProjectById(@PathVariable("id") @Parameter(description = "Project ID") Long id) {
         enforceProjectsReadAccess();
         return projectService.findById(id)
                 .map(ResponseEntity::ok)
@@ -77,7 +77,7 @@ public class ProjectController {
     @GetMapping("/domain/{domainId}")
     @Operation(summary = "Get projects by domain ID")
     public ResponseEntity<List<Project>> getProjectsByDomain(
-            @PathVariable @Parameter(description = "Domain ID") Long domainId) {
+            @PathVariable("domainId") @Parameter(description = "Domain ID") Long domainId) {
         enforceProjectsReadAccess();
         List<Project> projects = projectService.findByDomainId(domainId);
         return ResponseEntity.ok(projects);
@@ -86,7 +86,7 @@ public class ProjectController {
     @GetMapping("/category/{aiCategory}")
     @Operation(summary = "Get projects by AI category")
     public ResponseEntity<List<Project>> getProjectsByAiCategory(
-            @PathVariable @Parameter(description = "AI Category") String aiCategory) {
+            @PathVariable("aiCategory") @Parameter(description = "AI Category") String aiCategory) {
         enforceProjectsReadAccess();
         List<Project> projects = projectService.findByAiCategory(aiCategory);
         return ResponseEntity.ok(projects);
@@ -95,7 +95,7 @@ public class ProjectController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a project")
     public ResponseEntity<Project> updateProject(
-            @PathVariable @Parameter(description = "Project ID") Long id,
+            @PathVariable("id") @Parameter(description = "Project ID") Long id,
             @Valid @RequestBody Project projectDetails) {
         enforceAllowedProjectWrite();
         enforceOwnershipForChercheur(id);
@@ -105,7 +105,7 @@ public class ProjectController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a project by ID")
-    public ResponseEntity<Void> deleteProject(@PathVariable @Parameter(description = "Project ID") Long id) {
+    public ResponseEntity<Void> deleteProject(@PathVariable("id") @Parameter(description = "Project ID") Long id) {
         enforceAllowedProjectWrite();
         enforceOwnershipForChercheur(id);
         projectService.delete(id);
@@ -115,8 +115,8 @@ public class ProjectController {
     @PostMapping("/{id}/researchers/{researcherId}")
     @Operation(summary = "Add researcher to project")
     public ResponseEntity<Project> addResearcherToProject(
-            @PathVariable @Parameter(description = "Project ID") Long id,
-            @PathVariable @Parameter(description = "Researcher ID") Long researcherId) {
+            @PathVariable("id") @Parameter(description = "Project ID") Long id,
+            @PathVariable("researcherId") @Parameter(description = "Researcher ID") Long researcherId) {
         enforceAllowedProjectWrite();
         enforceOwnershipForChercheur(id);
         Project project = projectService.findById(id)
@@ -131,8 +131,8 @@ public class ProjectController {
     @DeleteMapping("/{id}/researchers/{researcherId}")
     @Operation(summary = "Remove researcher from project")
     public ResponseEntity<Project> removeResearcherFromProject(
-            @PathVariable @Parameter(description = "Project ID") Long id,
-            @PathVariable @Parameter(description = "Researcher ID") Long researcherId) {
+            @PathVariable("id") @Parameter(description = "Project ID") Long id,
+            @PathVariable("researcherId") @Parameter(description = "Researcher ID") Long researcherId) {
         enforceAllowedProjectWrite();
         enforceOwnershipForChercheur(id);
         Project project = projectService.findById(id)

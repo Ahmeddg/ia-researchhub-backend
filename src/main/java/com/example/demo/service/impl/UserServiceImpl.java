@@ -1,25 +1,33 @@
 package com.example.demo.service.impl;
 
 import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.model.Role;
 import com.example.demo.model.User;
+import com.example.demo.repository.RoleRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -56,18 +64,34 @@ public class UserServiceImpl implements UserService {
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
 
-        if (userDetails.getUsername() != null) {
+        if (userDetails.getUsername() != null && !userDetails.getUsername().isEmpty()) {
             existingUser.setUsername(userDetails.getUsername());
         }
-        if (userDetails.getEmail() != null) {
+        if (userDetails.getEmail() != null && !userDetails.getEmail().isEmpty()) {
             existingUser.setEmail(userDetails.getEmail());
         }
-        if (userDetails.getPassword() != null) {
-            existingUser.setPassword(userDetails.getPassword());
+        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(userDetails.getPassword()));
         }
         existingUser.setEnabled(userDetails.isEnabled());
 
         return userRepository.save(existingUser);
+    }
+
+    @Override
+    public User updateRoles(Long id, Set<String> roleNames) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        // Clear and update roles
+        user.getRoles().clear();
+        for (String roleName : roleNames) {
+            Role role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleName));
+            user.addRole(role);
+        }
+
+        return userRepository.save(user);
     }
 
     @Override

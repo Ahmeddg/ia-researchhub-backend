@@ -63,7 +63,7 @@ public class PublicationController {
     @GetMapping("/{id}")
     @Operation(summary = "Get publication by ID")
     public ResponseEntity<Publication> getPublicationById(
-            @PathVariable @Parameter(description = "Publication ID") Long id) {
+            @PathVariable("id") @Parameter(description = "Publication ID") Long id) {
         return publicationService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -71,7 +71,7 @@ public class PublicationController {
 
     @GetMapping("/doi/{doi}")
     @Operation(summary = "Get publication by DOI")
-    public ResponseEntity<Publication> getPublicationByDoi(@PathVariable @Parameter(description = "DOI") String doi) {
+    public ResponseEntity<Publication> getPublicationByDoi(@PathVariable("doi") @Parameter(description = "DOI") String doi) {
         return publicationService.findByDoi(doi)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -80,7 +80,7 @@ public class PublicationController {
     @GetMapping("/domain/{domainId}")
     @Operation(summary = "Get publications by domain ID")
     public ResponseEntity<List<Publication>> getPublicationsByDomain(
-            @PathVariable @Parameter(description = "Domain ID") Long domainId) {
+            @PathVariable("domainId") @Parameter(description = "Domain ID") Long domainId) {
         List<Publication> publications = publicationService.findByDomainId(domainId);
         return ResponseEntity.ok(publications);
     }
@@ -88,7 +88,7 @@ public class PublicationController {
     @GetMapping("/researcher/{researcherId}")
     @Operation(summary = "Get publications by researcher ID")
     public ResponseEntity<List<Publication>> getPublicationsByResearcher(
-            @PathVariable @Parameter(description = "Researcher ID") Long researcherId) {
+            @PathVariable("researcherId") @Parameter(description = "Researcher ID") Long researcherId) {
         List<Publication> publications = publicationService.findByResearcherId(researcherId);
         return ResponseEntity.ok(publications);
     }
@@ -96,7 +96,7 @@ public class PublicationController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a publication")
     public ResponseEntity<Publication> updatePublication(
-            @PathVariable @Parameter(description = "Publication ID") Long id,
+            @PathVariable("id") @Parameter(description = "Publication ID") Long id,
             @Valid @RequestBody Publication publicationDetails) {
         enforceOwnershipForChercheur(id);
         Publication updatedPublication = publicationService.update(id, publicationDetails);
@@ -105,7 +105,7 @@ public class PublicationController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a publication by ID")
-    public ResponseEntity<Void> deletePublication(@PathVariable @Parameter(description = "Publication ID") Long id) {
+    public ResponseEntity<Void> deletePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
         enforceOwnershipForChercheur(id);
         publicationService.delete(id);
         return ResponseEntity.noContent().build();

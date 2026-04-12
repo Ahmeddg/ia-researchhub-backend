@@ -52,22 +52,20 @@ public class UserController {
 
     @PutMapping("/me")
     @Operation(summary = "Update current authenticated user profile")
-    public ResponseEntity<UserResponse> updateCurrentUser(@RequestBody User userDetails) {
+    public ResponseEntity<UserResponse> updateCurrentUser(@RequestBody com.example.demo.dto.UserUpdateRequest userDetails) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
 
         User currentUser = userService.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
 
-        // Only allow updating email and password (not username or roles)
-        if (userDetails.getEmail() != null) {
-            currentUser.setEmail(userDetails.getEmail());
-        }
-        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
-            currentUser.setPassword(passwordEncoder.encode(userDetails.getPassword()));
-        }
+        // Use the existing update logic in service by creating a partial user object
+        User partialUser = new User();
+        partialUser.setEmail(userDetails.getEmail());
+        partialUser.setPassword(userDetails.getPassword());
+        partialUser.setEnabled(currentUser.isEnabled()); // Don't allow self-disabling via this endpoint possibly
 
-        User updatedUser = userService.update(currentUser.getId(), currentUser);
+        User updatedUser = userService.update(currentUser.getId(), partialUser);
         return ResponseEntity.ok(convertToUserResponse(updatedUser));
     }
 
@@ -92,78 +90,71 @@ public class UserController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable @Parameter(description = "User ID") Long id) {
+    public ResponseEntity<UserResponse> getUserById(@PathVariable("id") @Parameter(description = "User ID") Long id) {
         return userService.findById(id)
-                .map(user -> ResponseEntity.ok(convertToUserResponse(user)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(this::convertToUserResponse)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
     }
 
     @GetMapping("/username/{username}")
     @Operation(summary = "Get user by username")
-    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable @Parameter(description = "Username") String username) {
+    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable("username") @Parameter(description = "Username") String username) {
         return userService.findByUsername(username)
-                .map(user -> ResponseEntity.ok(convertToUserResponse(user)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(this::convertToUserResponse)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
     }
 
     @GetMapping("/email/{email}")
     @Operation(summary = "Get user by email")
-    public ResponseEntity<UserResponse> getUserByEmail(@PathVariable @Parameter(description = "Email address") String email) {
+    public ResponseEntity<UserResponse> getUserByEmail(@PathVariable("email") @Parameter(description = "Email address") String email) {
         return userService.findByEmail(email)
-                .map(user -> ResponseEntity.ok(convertToUserResponse(user)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(this::convertToUserResponse)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an existing user")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable @Parameter(description = "User ID") Long id,
-            @Valid @RequestBody User userDetails) {
-        // Encode password if provided
-        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
-            userDetails.setPassword(passwordEncoder.encode(userDetails.getPassword()));
-        }
-        User updatedUser = userService.update(id, userDetails);
+    @Operation(summary = "Update a user")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable("id") @Parameter(description = "User ID") Long id,
+            @RequestBody com.example.demo.dto.UserUpdateRequest userDetails) {
+        
+        User partialUser = new User();
+        partialUser.setUsername(userDetails.getUsername());
+        partialUser.setEmail(userDetails.getEmail());
+        partialUser.setPassword(userDetails.getPassword());
+        partialUser.setEnabled(userDetails.isEnabled());
+        
+        User updatedUser = userService.update(id, partialUser);
         return ResponseEntity.ok(convertToUserResponse(updatedUser));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a user by ID")
-    public ResponseEntity<Void> deleteUser(@PathVariable @Parameter(description = "User ID") Long id) {
+    @Operation(summary = "Delete a user")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<Void> deleteUser(@PathVariable("id") @Parameter(description = "User ID") Long id) {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/{id}/roles")
+    @PostMapping("/{id}/roles")
     @Operation(summary = "Assign roles to a user")
     public ResponseEntity<UserResponse> assignRoles(
-            @PathVariable @Parameter(description = "User ID") Long id,
+            @PathVariable("id") @Parameter(description = "User ID") Long id,
             @RequestBody Set<String> roleNames) {
 
-        User user = userService.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-
-        // Clear existing roles and add new ones
-        user.getRoles().clear();
-        for (String roleName : roleNames) {
-            Role role = roleService.findByName(roleName)
-                    .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleName));
-            user.addRole(role);
-        }
-
-        User updatedUser = userService.update(id, user);
+        User updatedUser = userService.updateRoles(id, roleNames);
         return ResponseEntity.ok(convertToUserResponse(updatedUser));
     }
 
     private UserResponse convertToUserResponse(User user) {
-        Set<String> roleNames = user.getRoles().stream()
-                .map(Role::getName)
-                .collect(Collectors.toSet());
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.isEnabled(),
-                roleNames
+                user.getRoles()
         );
     }
 }
