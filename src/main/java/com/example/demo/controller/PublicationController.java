@@ -1,8 +1,12 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.ClassificationResponseDTO;
+import com.example.demo.dto.ConfirmPublicationRequest;
+import com.example.demo.dto.PublicationWithClassificationDTO;
 import com.example.demo.model.Publication;
 import com.example.demo.model.User;
 import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.service.ClassificationServiceClient;
 import com.example.demo.service.UserService;
 import com.example.demo.service.PublicationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,23 +31,70 @@ public class PublicationController {
 
     private final PublicationService publicationService;
     private final UserService userService;
+    private final ClassificationServiceClient classificationServiceClient;
 
     @Autowired
-    public PublicationController(PublicationService publicationService, UserService userService) {
+    public PublicationController(PublicationService publicationService,
+                                  UserService userService,
+                                  ClassificationServiceClient classificationServiceClient) {
         this.publicationService = publicationService;
         this.userService = userService;
+        this.classificationServiceClient = classificationServiceClient;
     }
 
+    /**
+     * Create a publication as DRAFT, immediately call the classification service,
+     * and return both the saved publication (with its real DB ID) and the AI result.
+     *
+     * The frontend shows the AI result for review. Once the user confirms (or edits),
+     * they call PUT /api/publications/{id}/confirm to finalise.
+     */
     @PostMapping
-    @Operation(summary = "Create a new publication")
-    public ResponseEntity<Publication> createPublication(@Valid @RequestBody Publication publication) {
+    @Operation(summary = "Create a publication (draft) and classify it",
+               description = "Saves the publication as DRAFT, calls the AI classification service, " +
+                             "and returns the combined result for the user to review before confirming.")
+    public ResponseEntity<PublicationWithClassificationDTO> createPublication(
+            @Valid @RequestBody Publication publication) {
+
         enforceAllowedPublicationWrite();
         String username = currentUsername();
         User creator = userService.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
         publication.setCreatedBy(creator);
-        Publication savedPublication = publicationService.create(publication);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedPublication);
+
+        // 1. Save as DRAFT to get a real DB ID (shared with Python service)
+        Publication savedDraft = publicationService.createDraft(publication);
+
+        // 2. Call Python classification service (uses same DB — writes cluster_id etc.)
+        ClassificationResponseDTO classification = classificationServiceClient.classify(savedDraft);
+
+        // 3. Return both together — frontend shows AI review panel
+        PublicationWithClassificationDTO response =
+                new PublicationWithClassificationDTO(savedDraft, classification);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Confirm a DRAFT publication after the user reviews and optionally edits the AI results.
+     * Sets status=PUBLISHED and stores the approved AI metadata.
+     */
+    @PutMapping("/{id}/confirm")
+    @Operation(summary = "Confirm a draft publication with approved AI classification",
+               description = "Transitions a DRAFT publication to PUBLISHED status and " +
+                             "stores the user-approved categories, keywords, and confidence.")
+    public ResponseEntity<Publication> confirmPublication(
+            @PathVariable @Parameter(description = "Publication ID") Long id,
+            @RequestBody ConfirmPublicationRequest request) {
+
+        enforceOwnershipForChercheur(id);
+        Publication confirmed = publicationService.confirmPublication(
+                id,
+                request.getAiCategories(),
+                request.getAiKeywords(),
+                request.getAiConfidence()
+        );
+        return ResponseEntity.ok(confirmed);
     }
 
     @GetMapping
@@ -110,6 +161,8 @@ public class PublicationController {
         publicationService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    // ── Security helpers ──────────────────────────────────────────────────────
 
     private void enforceOwnershipForChercheur(Long publicationId) {
         enforceAllowedPublicationWrite();

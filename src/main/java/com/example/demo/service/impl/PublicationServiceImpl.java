@@ -24,7 +24,25 @@ public class PublicationServiceImpl implements PublicationService {
 
     @Override
     public Publication create(Publication publication) {
+        publication.setStatus("PUBLISHED");
         return publicationRepository.save(publication);
+    }
+
+    @Override
+    public Publication createDraft(Publication publication) {
+        publication.setStatus("DRAFT");
+        return publicationRepository.save(publication);
+    }
+
+    @Override
+    public Publication confirmPublication(Long id, String aiCategories, String aiKeywords, Double aiConfidence) {
+        Publication existing = publicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Publication", "id", id));
+        existing.setStatus("PUBLISHED");
+        existing.setAiCategories(aiCategories);
+        existing.setAiKeywords(aiKeywords);
+        existing.setAiConfidence(aiConfidence);
+        return publicationRepository.save(existing);
     }
 
     @Override
