@@ -45,9 +45,9 @@ public class ResearcherRoleRequestServiceImpl implements ResearcherRoleRequestSe
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
 
-        boolean alreadyResearcher = user.getRoles().stream().anyMatch(r -> "CHERCHEUR".equals(r.getName()));
+        boolean alreadyResearcher = user.getRoles().stream().anyMatch(r -> "ROLE_RESEARCHER".equals(r.getName()));
         if (alreadyResearcher) {
-            throw new BadRequestException("User already has CHERCHEUR role");
+            throw new BadRequestException("User already has RESEARCHER role");
         }
 
         requestRepository.findFirstByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), ResearcherRequestStatus.PENDING)
@@ -93,9 +93,9 @@ public class ResearcherRoleRequestServiceImpl implements ResearcherRoleRequestSe
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", adminUsername));
         User user = request.getUser();
 
-        Role chercheurRole = roleRepository.findByName("CHERCHEUR")
-                .orElseGet(() -> roleRepository.save(new Role("CHERCHEUR")));
-        user.addRole(chercheurRole);
+        Role researcherRole = roleRepository.findByName("ROLE_RESEARCHER")
+                .orElseGet(() -> roleRepository.save(new Role("ROLE_RESEARCHER")));
+        user.addRole(researcherRole);
         userRepository.save(user);
 
         researcherRepository.findByEmail(user.getEmail())

@@ -78,40 +78,40 @@ public class SecurityConfig {
                         // User profile - any authenticated user (must come before general /api/users rules)
                         .requestMatchers("/api/users/me").authenticated()
 
-                        // Content management - MODERATEUR, ADMIN
-                        .requestMatchers(HttpMethod.POST, "/api/news/**").hasAnyRole("MODERATEUR", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/news/**").hasAnyRole("MODERATEUR", "ADMIN")
+                        // Content management - MODERATOR, ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/news/**").hasAnyRole("MODERATOR", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/news/**").hasAnyRole("MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/news/**")
-                        .hasAnyRole("MODERATEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "ADMIN")
 
-                        // Publications - MODERATEUR, CHERCHEUR, ADMIN
+                        // Publications - MODERATOR, RESEARCHER, ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/publications/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "RESEARCHER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/publications/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "RESEARCHER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/publications/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "RESEARCHER", "ADMIN")
 
                         .requestMatchers(HttpMethod.POST, "/api/projects/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "RESEARCHER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/projects/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "RESEARCHER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/projects/**")
-                        .hasAnyRole("MODERATEUR", "CHERCHEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "RESEARCHER", "ADMIN")
 
                         .requestMatchers(HttpMethod.POST, "/api/domains/**")
-                        .hasAnyRole("MODERATEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/domains/**")
-                        .hasAnyRole("MODERATEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/domains/**")
-                        .hasAnyRole("MODERATEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "ADMIN")
 
                         .requestMatchers(HttpMethod.POST, "/api/researchers/**")
-                        .hasAnyRole("MODERATEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/researchers/**")
-                        .hasAnyRole("MODERATEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/researchers/**")
-                        .hasAnyRole("MODERATEUR", "ADMIN")
+                        .hasAnyRole("MODERATOR", "ADMIN")
 
                         // Role assignment - ADMIN only
                         .requestMatchers("/api/users/*/roles").hasRole("ADMIN")

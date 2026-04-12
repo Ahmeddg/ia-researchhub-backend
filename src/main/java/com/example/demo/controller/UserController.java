@@ -154,7 +154,9 @@ public class UserController {
                 user.getUsername(),
                 user.getEmail(),
                 user.isEnabled(),
-                user.getRoles()
+                user.getRoles().stream()
+                        .map(Role::getName)
+                        .collect(Collectors.toSet())
         );
     }
 }

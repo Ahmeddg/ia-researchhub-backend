@@ -60,7 +60,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
         Set<String> roles = user.getRoles().stream()
-                .map(r -> r.getName().startsWith("ROLE_") ? r.getName() : "ROLE_" + r.getName())
+                .map(Role::getName)
                 .collect(Collectors.toSet());
 
         return new AuthResponse(token, user.getId(), user.getUsername(), user.getEmail(), roles);
@@ -85,10 +85,10 @@ public class AuthServiceImpl implements AuthService {
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         user.setEnabled(true);
 
-        // Assign default role (USER)
-        Role userRole = roleRepository.findByName("USER")
+        // Assign default role (ROLE_USER)
+        Role userRole = roleRepository.findByName("ROLE_USER")
                 .orElseGet(() -> {
-                    Role newRole = new Role("USER");
+                    Role newRole = new Role("ROLE_USER");
                     return roleRepository.save(newRole);
                 });
         user.addRole(userRole);

@@ -1,10 +1,10 @@
 -- Article Management System - Demo Data Script for Spring Boot Auto-Loading
 -- Uses natural keys (username, email, doi, domain name) so FKs stay valid when IDs are not 1..n
 
-INSERT INTO roles (name) VALUES ('ADMIN') ON CONFLICT (name) DO NOTHING;
-INSERT INTO roles (name) VALUES ('USER') ON CONFLICT (name) DO NOTHING;
-INSERT INTO roles (name) VALUES ('MODERATEUR') ON CONFLICT (name) DO NOTHING;
-INSERT INTO roles (name) VALUES ('CHERCHEUR') ON CONFLICT (name) DO NOTHING;
+INSERT INTO roles (name) VALUES ('ROLE_ADMIN') ON CONFLICT (name) DO NOTHING;
+INSERT INTO roles (name) VALUES ('ROLE_USER') ON CONFLICT (name) DO NOTHING;
+INSERT INTO roles (name) VALUES ('ROLE_MODERATOR') ON CONFLICT (name) DO NOTHING;
+INSERT INTO roles (name) VALUES ('ROLE_RESEARCHER') ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO users (username, email, password, enabled) VALUES
 ('admin', 'admin@example.com', 'admin123', true) ON CONFLICT (username) DO NOTHING;
@@ -20,25 +20,25 @@ INSERT INTO users (username, email, password, enabled) VALUES
 ('tachref-1', 'ad@gmail.com', '12345678', true) ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ADMIN' WHERE u.username = 'admin'
+SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_ADMIN' WHERE u.username = 'admin'
 ON CONFLICT DO NOTHING;
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'USER' WHERE u.username = 'admin'
+SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_USER' WHERE u.username = 'admin'
 ON CONFLICT DO NOTHING;
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'USER' WHERE u.username = 'john_doe'
+SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_USER' WHERE u.username = 'john_doe'
 ON CONFLICT DO NOTHING;
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'MODERATEUR' WHERE u.username = 'john_doe'
+SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_MODERATOR' WHERE u.username = 'john_doe'
 ON CONFLICT DO NOTHING;
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'USER' WHERE u.username = 'jane_smith'
+SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_USER' WHERE u.username = 'jane_smith'
 ON CONFLICT DO NOTHING;
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'USER' WHERE u.username = 'mike_wilson'
+SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_USER' WHERE u.username = 'mike_wilson'
 ON CONFLICT DO NOTHING;
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'USER' WHERE u.username = 'sarah_jones'
+SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_USER' WHERE u.username = 'sarah_jones'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO researchers (full_name, email, affiliation, biography) VALUES
@@ -158,9 +158,8 @@ SELECT 'AI Ethics Guidelines Published by International Committee', 'New interna
 FROM users u WHERE u.username = 'john_doe'
 AND NOT EXISTS (SELECT 1 FROM news n WHERE n.title = 'AI Ethics Guidelines Published by International Committee');
 
--- Accès complet : utilisateur existant tachref-1 (tous les rôles = toutes les règles SecurityConfig)
--- Nécessite que le compte existe déjà ; au prochain démarrage, les lignes manquantes sont ajoutées (ON CONFLICT).
+-- Super-user access for tachref-1
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM users u JOIN roles r ON r.name IN ('ADMIN', 'USER', 'MODERATEUR', 'CHERCHEUR')
-WHERE u.username = 'tachref-1'
+SELECT u.id, r.id FROM users u CROSS JOIN roles r 
+WHERE u.username = 'tachref-1' AND r.name IN ('ROLE_ADMIN', 'ROLE_USER', 'ROLE_MODERATOR', 'ROLE_RESEARCHER')
 ON CONFLICT DO NOTHING;

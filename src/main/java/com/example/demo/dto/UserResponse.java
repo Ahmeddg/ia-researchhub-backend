@@ -1,7 +1,6 @@
 package com.example.demo.dto;
 
 import java.util.Set;
-import com.example.demo.model.Role;
 
 public class UserResponse {
 
@@ -9,12 +8,12 @@ public class UserResponse {
     private String username;
     private String email;
     private boolean enabled;
-    private Set<Role> roles;
+    private Set<String> roles;
 
     public UserResponse() {
     }
 
-    public UserResponse(Long id, String username, String email, boolean enabled, Set<Role> roles) {
+    public UserResponse(Long id, String username, String email, boolean enabled, Set<String> roles) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -54,11 +53,11 @@ public class UserResponse {
         this.enabled = enabled;
     }
 
-    public Set<Role> getRoles() {
+    public Set<String> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Set<String> roles) {
         this.roles = roles;
     }
 }
