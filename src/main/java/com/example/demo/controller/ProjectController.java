@@ -1,9 +1,12 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.CreateProjectRequest;
 import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.model.Domain;
 import com.example.demo.model.Project;
 import com.example.demo.model.Researcher;
 import com.example.demo.model.User;
+import com.example.demo.service.DomainService;
 import com.example.demo.service.ProjectService;
 import com.example.demo.service.ResearcherService;
 import com.example.demo.service.UserService;
@@ -20,7 +23,9 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -30,22 +35,47 @@ public class ProjectController {
     private final ProjectService projectService;
     private final UserService userService;
     private final ResearcherService researcherService;
+    private final DomainService domainService;
 
     @Autowired
-    public ProjectController(ProjectService projectService, UserService userService, ResearcherService researcherService) {
+    public ProjectController(ProjectService projectService, UserService userService, ResearcherService researcherService, DomainService domainService) {
         this.projectService = projectService;
         this.userService = userService;
         this.researcherService = researcherService;
+        this.domainService = domainService;
     }
 
     @PostMapping
     @Operation(summary = "Create a new project")
-    public ResponseEntity<Project> createProject(@Valid @RequestBody Project project) {
+    public ResponseEntity<Project> createProject(@Valid @RequestBody CreateProjectRequest request) {
         enforceAllowedProjectWrite();
         String username = currentUsername();
         User creator = userService.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
+        
+        // Get domain
+        Domain domain = domainService.findById(request.getDomainId())
+                .orElseThrow(() -> new ResourceNotFoundException("Domain", "id", request.getDomainId()));
+        
+        // Create project
+        Project project = new Project();
+        project.setTitle(request.getTitle());
+        project.setDescription(request.getDescription());
+        project.setAiCategory(request.getAiCategory());
+        project.setDomain(domain);
         project.setCreatedBy(creator);
+        
+        // Add researchers if provided
+        if (request.getResearcherIds() != null && !request.getResearcherIds().isEmpty()) {
+            Set<Researcher> researchers = new HashSet<>();
+            for (Long researcherId : request.getResearcherIds()) {
+                Researcher researcher = researcherService.findById(researcherId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Researcher", "id", researcherId));
+                researchers.add(researcher);
+            }
+            project.setResearchers(researchers);
+        }
+        
         Project savedProject = projectService.create(project);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProject);
     }
@@ -148,8 +178,8 @@ public class ProjectController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean allowed = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch(authority -> authority.equals("ROLE_MODERATEUR")
-                        || authority.equals("ROLE_CHERCHEUR")
+                .anyMatch(authority -> authority.equals("ROLE_MODERATOR")
+                        || authority.equals("ROLE_RESEARCHER")
                         || authority.equals("ROLE_ADMIN"));
         if (!allowed) {
             throw new AccessDeniedException("Users can only access news and publications");
@@ -159,9 +189,9 @@ public class ProjectController {
     private void enforceOwnershipForChercheur(Long projectId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean isChercheur = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_CHERCHEUR".equals(a.getAuthority()));
+                .anyMatch(a -> "ROLE_RESEARCHER".equals(a.getAuthority()));
         if (isChercheur && !projectService.isOwner(projectId, authentication.getName())) {
-            throw new AccessDeniedException("CHERCHEUR can only manage their own projects");
+            throw new AccessDeniedException("RESEARCHER can only manage their own projects");
         }
     }
 
@@ -170,8 +200,8 @@ public class ProjectController {
         boolean allowed = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(authority -> authority.equals("ROLE_ADMIN")
-                        || authority.equals("ROLE_MODERATEUR")
-                        || authority.equals("ROLE_CHERCHEUR"));
+                        || authority.equals("ROLE_MODERATOR")
+                        || authority.equals("ROLE_RESEARCHER"));
         if (!allowed) {
             throw new AccessDeniedException("You are not allowed to manage projects");
         }
