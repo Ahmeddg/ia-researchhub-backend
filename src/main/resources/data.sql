@@ -1,23 +1,35 @@
 -- Article Management System - Demo Data Script for Spring Boot Auto-Loading
 -- Uses natural keys (username, email, doi, domain name) so FKs stay valid when IDs are not 1..n
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 INSERT INTO roles (name) VALUES ('ROLE_ADMIN') ON CONFLICT (name) DO NOTHING;
 INSERT INTO roles (name) VALUES ('ROLE_USER') ON CONFLICT (name) DO NOTHING;
 INSERT INTO roles (name) VALUES ('ROLE_MODERATOR') ON CONFLICT (name) DO NOTHING;
 INSERT INTO roles (name) VALUES ('ROLE_RESEARCHER') ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO users (username, email, password, enabled) VALUES
-('admin', 'admin@example.com', 'admin123', true) ON CONFLICT (username) DO NOTHING;
+('admin', 'admin@example.com', crypt('admin123', gen_salt('bf', 10)), true) ON CONFLICT (username) DO NOTHING;
 INSERT INTO users (username, email, password, enabled) VALUES
-('john_doe', 'john@example.com', 'password123', true) ON CONFLICT (username) DO NOTHING;
+('john_doe', 'john@example.com', crypt('password123', gen_salt('bf', 10)), true) ON CONFLICT (username) DO NOTHING;
 INSERT INTO users (username, email, password, enabled) VALUES
-('jane_smith', 'jane@example.com', 'password123', true) ON CONFLICT (username) DO NOTHING;
+('jane_smith', 'jane@example.com', crypt('password123', gen_salt('bf', 10)), true) ON CONFLICT (username) DO NOTHING;
 INSERT INTO users (username, email, password, enabled) VALUES
-('mike_wilson', 'mike@example.com', 'password123', true) ON CONFLICT (username) DO NOTHING;
+('mike_wilson', 'mike@example.com', crypt('password123', gen_salt('bf', 10)), true) ON CONFLICT (username) DO NOTHING;
 INSERT INTO users (username, email, password, enabled) VALUES
-('sarah_jones', 'sarah@example.com', 'password123', true) ON CONFLICT (username) DO NOTHING;
+('sarah_jones', 'sarah@example.com', crypt('password123', gen_salt('bf', 10)), true) ON CONFLICT (username) DO NOTHING;
 INSERT INTO users (username, email, password, enabled) VALUES
-('tachref-1', 'ad@gmail.com', '12345678', true) ON CONFLICT (username) DO NOTHING;
+('tachref-1', 'ad@gmail.com', crypt('12345678', gen_salt('bf', 10)), true) 
+ON CONFLICT (username) DO UPDATE
+SET email = EXCLUDED.email,
+    password = EXCLUDED.password,
+    enabled = EXCLUDED.enabled;
+INSERT INTO users (username, email, password, enabled) VALUES
+('hazem', 'hazem@gmail.com', crypt('12345678', gen_salt('bf', 10)), true)
+ON CONFLICT (username) DO UPDATE
+SET email = EXCLUDED.email,
+    password = EXCLUDED.password,
+    enabled = EXCLUDED.enabled;
 
 INSERT INTO user_roles (user_id, role_id)
 SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ROLE_ADMIN' WHERE u.username = 'admin'
@@ -162,4 +174,10 @@ AND NOT EXISTS (SELECT 1 FROM news n WHERE n.title = 'AI Ethics Guidelines Publi
 INSERT INTO user_roles (user_id, role_id)
 SELECT u.id, r.id FROM users u CROSS JOIN roles r 
 WHERE u.username = 'tachref-1' AND r.name IN ('ROLE_ADMIN', 'ROLE_USER', 'ROLE_MODERATOR', 'ROLE_RESEARCHER')
+ON CONFLICT DO NOTHING;
+
+-- Super-user access for hazem
+INSERT INTO user_roles (user_id, role_id)
+SELECT u.id, r.id FROM users u CROSS JOIN roles r
+WHERE u.username = 'hazem' AND r.name IN ('ROLE_ADMIN', 'ROLE_USER', 'ROLE_MODERATOR', 'ROLE_RESEARCHER')
 ON CONFLICT DO NOTHING;

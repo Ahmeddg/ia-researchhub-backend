@@ -1,15 +1,24 @@
 package com.example.demo.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * DTO sent to the Python classification service POST /classify endpoint.
- * Fields match the Python ClassifyRequest Pydantic schema.
+ * Fields match the Python ClassifyRequest Pydantic schema (snake_case).
  */
 public class ClassificationRequestDTO {
 
+    @JsonProperty("publication_id")
     private Long publicationId;
+
     private String title;
+
+    @JsonProperty("abstract_text")
     private String abstractText;
+
     private String domain;
+
+    @JsonProperty("pdf_url")
     private String pdfUrl;
 
     public ClassificationRequestDTO() {}
