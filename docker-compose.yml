@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg15
     container_name: ia-researchhub-db
     environment:
       POSTGRES_DB: article_db
@@ -12,6 +12,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../classification-service/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
     networks:
       - article-network
     healthcheck:

@@ -73,24 +73,24 @@ INSERT INTO domains (name, description) VALUES
 ('Robotics', 'Autonomous systems, robotic control, and human-robot interaction research.')
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id)
-SELECT 'Deep Residual Learning for Image Recognition', 'We present a residual learning framework to ease training of very deep neural networks. This framework enables training networks with more than 150 layers, achieving record-breaking accuracy on ImageNet.', '2015-12-10', 'https://arxiv.org/pdf/1512.03385.pdf', '10.1109/CVPR.2016.90', d.id
+INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id, status)
+SELECT 'Deep Residual Learning for Image Recognition', 'We present a residual learning framework to ease training of very deep neural networks. This framework enables training networks with more than 150 layers, achieving record-breaking accuracy on ImageNet.', '2015-12-10', 'https://arxiv.org/pdf/1512.03385.pdf', '10.1109/CVPR.2016.90', d.id, 'PUBLISHED'
 FROM domains d WHERE d.name = 'Computer Vision'
 ON CONFLICT (doi) DO NOTHING;
-INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id)
-SELECT 'Attention is All You Need', 'The dominant sequence transduction models are based on complex recurrent/convolutional neural networks. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms.', '2017-06-12', 'https://arxiv.org/pdf/1706.03762.pdf', '10.5555/3295222.3295349', d.id
+INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id, status)
+SELECT 'Attention is All You Need', 'The dominant sequence transduction models are based on complex recurrent/convolutional neural networks. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms.', '2017-06-12', 'https://arxiv.org/pdf/1706.03762.pdf', '10.5555/3295222.3295349', d.id, 'PUBLISHED'
 FROM domains d WHERE d.name = 'Natural Language Processing'
 ON CONFLICT (doi) DO NOTHING;
-INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id)
-SELECT 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding', 'We introduce BERT, a new pre-training approach which stands for Bidirectional Encoder Representations from Transformers. Unlike previous language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text.', '2018-10-11', 'https://arxiv.org/pdf/1810.04805.pdf', '10.18653/v1/N19-1423', d.id
+INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id, status)
+SELECT 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding', 'We introduce BERT, a new pre-training approach which stands for Bidirectional Encoder Representations from Transformers. Unlike previous language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text.', '2018-10-11', 'https://arxiv.org/pdf/1810.04805.pdf', '10.18653/v1/N19-1423', d.id, 'PUBLISHED'
 FROM domains d WHERE d.name = 'Natural Language Processing'
 ON CONFLICT (doi) DO NOTHING;
-INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id)
-SELECT 'Generative Adversarial Nets', 'We propose a new framework for estimating generative models via an adversarial process, in which we simultaneously train two models: a generative model G that captures the data distribution, and a discriminative model D that estimates the probability that a sample came from the training data.', '2014-06-10', 'https://arxiv.org/pdf/1406.2661.pdf', '10.5555/2969033.2969125', d.id
+INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id, status)
+SELECT 'Generative Adversarial Nets', 'We propose a new framework for estimating generative models via an adversarial process, in which we simultaneously train two models: a generative model G that captures the data distribution, and a discriminative model D that estimates the probability that a sample came from the training data.', '2014-06-10', 'https://arxiv.org/pdf/1406.2661.pdf', '10.5555/2969033.2969125', d.id, 'PUBLISHED'
 FROM domains d WHERE d.name = 'Artificial Intelligence'
 ON CONFLICT (doi) DO NOTHING;
-INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id)
-SELECT 'ImageNet-21K Pretraining for the Masses', 'Transformers trained on ImageNet-21K produce excellent results when fine-tuned on downstream tasks. We present ViT-g, a new model trained on ImageNet-21K that achieves state-of-the-art results on multiple benchmarks.', '2021-12-02', 'https://arxiv.org/pdf/2106.14881.pdf', '10.1007/978-3-030-58604-1_15', d.id
+INSERT INTO publications (title, abstract_text, publication_date, pdf_url, doi, domain_id, status)
+SELECT 'ImageNet-21K Pretraining for the Masses', 'Transformers trained on ImageNet-21K produce excellent results when fine-tuned on downstream tasks. We present ViT-g, a new model trained on ImageNet-21K that achieves state-of-the-art results on multiple benchmarks.', '2021-12-02', 'https://arxiv.org/pdf/2106.14881.pdf', '10.1007/978-3-030-58604-1_15', d.id, 'PUBLISHED'
 FROM domains d WHERE d.name = 'Artificial Intelligence'
 ON CONFLICT (doi) DO NOTHING;
 
