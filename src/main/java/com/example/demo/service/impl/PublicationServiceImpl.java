@@ -101,6 +101,12 @@ public class PublicationServiceImpl implements PublicationService {
         if (publicationDetails.getDoi() != null) {
             existingPublication.setDoi(publicationDetails.getDoi());
         }
+        if (publicationDetails.getJournal() != null) {
+            existingPublication.setJournal(publicationDetails.getJournal());
+        }
+        if (publicationDetails.getImageUrl() != null) {
+            existingPublication.setImageUrl(publicationDetails.getImageUrl());
+        }
         if (publicationDetails.getDomain() != null) {
             existingPublication.setDomain(publicationDetails.getDomain());
         }

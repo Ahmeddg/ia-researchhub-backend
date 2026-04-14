@@ -34,6 +34,12 @@ public class Publication {
     @Column(unique = true)
     private String doi;
 
+    @Column(length = 300)
+    private String journal;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @NotNull(message = "Domain is required")
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "domain_id", nullable = false)
@@ -109,6 +115,12 @@ public class Publication {
 
     public String getDoi() { return doi; }
     public void setDoi(String doi) { this.doi = doi; }
+
+    public String getJournal() { return journal; }
+    public void setJournal(String journal) { this.journal = journal; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public Domain getDomain() { return domain; }
     public void setDomain(Domain domain) { this.domain = domain; }
