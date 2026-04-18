@@ -38,4 +38,8 @@ public interface PublicationService {
     long countByDomainId(Long domainId);
 
     boolean isOwner(Long publicationId, String username);
+    
+    Publication upvote(Long id);
+    
+    Publication downvote(Long id);
 }

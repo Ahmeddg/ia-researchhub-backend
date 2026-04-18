@@ -148,4 +148,22 @@ public class PublicationServiceImpl implements PublicationService {
     public boolean isOwner(Long publicationId, String username) {
         return publicationRepository.existsByIdAndCreatedByUsername(publicationId, username);
     }
+
+    @Override
+    public Publication upvote(Long id) {
+        Publication publication = publicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Publication", "id", id));
+        int currentVotes = publication.getUpvotes() != null ? publication.getUpvotes() : 0;
+        publication.setUpvotes(currentVotes + 1);
+        return publicationRepository.save(publication);
+    }
+
+    @Override
+    public Publication downvote(Long id) {
+        Publication publication = publicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Publication", "id", id));
+        int currentVotes = publication.getDownvotes() != null ? publication.getDownvotes() : 0;
+        publication.setDownvotes(currentVotes + 1);
+        return publicationRepository.save(publication);
+    }
 }

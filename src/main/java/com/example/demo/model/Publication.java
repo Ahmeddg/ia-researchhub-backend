@@ -87,6 +87,12 @@ public class Publication {
     @Column(name = "ai_confidence")
     private Double aiConfidence;
 
+    @Column(name = "upvotes")
+    private Integer upvotes = 0;
+
+    @Column(name = "downvotes")
+    private Integer downvotes = 0;
+
     public Publication() {
     }
 
@@ -157,4 +163,10 @@ public class Publication {
 
     public Double getAiConfidence() { return aiConfidence; }
     public void setAiConfidence(Double aiConfidence) { this.aiConfidence = aiConfidence; }
+
+    public Integer getUpvotes() { return upvotes != null ? upvotes : 0; }
+    public void setUpvotes(Integer upvotes) { this.upvotes = upvotes; }
+
+    public Integer getDownvotes() { return downvotes != null ? downvotes : 0; }
+    public void setDownvotes(Integer downvotes) { this.downvotes = downvotes; }
 }

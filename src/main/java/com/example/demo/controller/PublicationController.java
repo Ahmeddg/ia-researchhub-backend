@@ -162,6 +162,20 @@ public class PublicationController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/upvote")
+    @Operation(summary = "Upvote a publication")
+    public ResponseEntity<Publication> upvotePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
+        Publication updated = publicationService.upvote(id);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/downvote")
+    @Operation(summary = "Downvote a publication")
+    public ResponseEntity<Publication> downvotePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
+        Publication updated = publicationService.downvote(id);
+        return ResponseEntity.ok(updated);
+    }
+
     // ── Security helpers ──────────────────────────────────────────────────────
 
     private void enforceOwnershipForChercheur(Long publicationId) {
