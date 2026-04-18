@@ -13,11 +13,12 @@ import org.springframework.web.client.RestTemplate;
 
 /**
  * HTTP client for the Python classification microservice.
- * Calls POST /classify and maps the response back to a ClassificationResponseDTO.
+ * Calls POST /classify and maps the response back to a
+ * ClassificationResponseDTO.
  *
  * The Python service uses the SAME PostgreSQL database, so after this call:
- *  - The publication embedding is stored in publication_embeddings
- *  - publications.cluster_id / cluster_label are updated directly by Python
+ * - The publication embedding is stored in publication_embeddings
+ * - publications.cluster_id / cluster_label are updated directly by Python
  */
 @Service
 public class ClassificationServiceClient {
@@ -36,7 +37,8 @@ public class ClassificationServiceClient {
     /**
      * Classify a publication by calling the Python service.
      *
-     * @param publication The saved publication entity (must have a real ID already).
+     * @param publication The saved publication entity (must have a real ID
+     *                    already).
      * @return The classification result, or null if the service is unavailable.
      */
     public ClassificationResponseDTO classify(Publication publication) {
@@ -47,15 +49,14 @@ public class ClassificationServiceClient {
                 publication.getTitle(),
                 publication.getAbstractText(),
                 domainName,
-                publication.getPdfUrl()
-        );
+                publication.getPdfUrl());
 
         String url = classificationServiceUrl + "/classify";
         log.info("Calling classification service at {} for publication id={}", url, publication.getId());
 
         try {
-            ResponseEntity<ClassificationResponseDTO> response =
-                    restTemplate.postForEntity(url, request, ClassificationResponseDTO.class);
+            ResponseEntity<ClassificationResponseDTO> response = restTemplate.postForEntity(url, request,
+                    ClassificationResponseDTO.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 log.info("Classification successful for publication id={}: cluster='{}', confidence={}",

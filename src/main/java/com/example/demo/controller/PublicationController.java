@@ -35,8 +35,8 @@ public class PublicationController {
 
     @Autowired
     public PublicationController(PublicationService publicationService,
-                                  UserService userService,
-                                  ClassificationServiceClient classificationServiceClient) {
+            UserService userService,
+            ClassificationServiceClient classificationServiceClient) {
         this.publicationService = publicationService;
         this.userService = userService;
         this.classificationServiceClient = classificationServiceClient;
@@ -44,15 +44,17 @@ public class PublicationController {
 
     /**
      * Create a publication as DRAFT, immediately call the classification service,
-     * and return both the saved publication (with its real DB ID) and the AI result.
+     * and return both the saved publication (with its real DB ID) and the AI
+     * result.
      *
-     * The frontend shows the AI result for review. Once the user confirms (or edits),
+     * The frontend shows the AI result for review. Once the user confirms (or
+     * edits),
      * they call PUT /api/publications/{id}/confirm to finalise.
      */
     @PostMapping
-    @Operation(summary = "Create a publication (draft) and classify it",
-               description = "Saves the publication as DRAFT, calls the AI classification service, " +
-                             "and returns the combined result for the user to review before confirming.")
+    @Operation(summary = "Create a publication (draft) and classify it", description = "Saves the publication as DRAFT, calls the AI classification service, "
+            +
+            "and returns the combined result for the user to review before confirming.")
     public ResponseEntity<PublicationWithClassificationDTO> createPublication(
             @Valid @RequestBody Publication publication) {
 
@@ -69,20 +71,20 @@ public class PublicationController {
         ClassificationResponseDTO classification = classificationServiceClient.classify(savedDraft);
 
         // 3. Return both together — frontend shows AI review panel
-        PublicationWithClassificationDTO response =
-                new PublicationWithClassificationDTO(savedDraft, classification);
+        PublicationWithClassificationDTO response = new PublicationWithClassificationDTO(savedDraft, classification);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
-     * Confirm a DRAFT publication after the user reviews and optionally edits the AI results.
+     * Confirm a DRAFT publication after the user reviews and optionally edits the
+     * AI results.
      * Sets status=PUBLISHED and stores the approved AI metadata.
      */
     @PutMapping("/{id}/confirm")
-    @Operation(summary = "Confirm a draft publication with approved AI classification",
-               description = "Transitions a DRAFT publication to PUBLISHED status and " +
-                             "stores the user-approved categories, keywords, and confidence.")
+    @Operation(summary = "Confirm a draft publication with approved AI classification", description = "Transitions a DRAFT publication to PUBLISHED status and "
+            +
+            "stores the user-approved categories, keywords, and confidence.")
     public ResponseEntity<Publication> confirmPublication(
             @PathVariable @Parameter(description = "Publication ID") Long id,
             @RequestBody ConfirmPublicationRequest request) {
@@ -92,8 +94,7 @@ public class PublicationController {
                 id,
                 request.getAiCategories(),
                 request.getAiKeywords(),
-                request.getAiConfidence()
-        );
+                request.getAiConfidence());
         return ResponseEntity.ok(confirmed);
     }
 
@@ -122,7 +123,8 @@ public class PublicationController {
 
     @GetMapping("/doi/{doi}")
     @Operation(summary = "Get publication by DOI")
-    public ResponseEntity<Publication> getPublicationByDoi(@PathVariable("doi") @Parameter(description = "DOI") String doi) {
+    public ResponseEntity<Publication> getPublicationByDoi(
+            @PathVariable("doi") @Parameter(description = "DOI") String doi) {
         return publicationService.findByDoi(doi)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -156,24 +158,11 @@ public class PublicationController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a publication by ID")
-    public ResponseEntity<Void> deletePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
+    public ResponseEntity<Void> deletePublication(
+            @PathVariable("id") @Parameter(description = "Publication ID") Long id) {
         enforceOwnershipForChercheur(id);
         publicationService.delete(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{id}/upvote")
-    @Operation(summary = "Upvote a publication")
-    public ResponseEntity<Publication> upvotePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
-        Publication updated = publicationService.upvote(id);
-        return ResponseEntity.ok(updated);
-    }
-
-    @PostMapping("/{id}/downvote")
-    @Operation(summary = "Downvote a publication")
-    public ResponseEntity<Publication> downvotePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
-        Publication updated = publicationService.downvote(id);
-        return ResponseEntity.ok(updated);
     }
 
     // ── Security helpers ──────────────────────────────────────────────────────

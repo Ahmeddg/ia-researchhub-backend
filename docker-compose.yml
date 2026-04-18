@@ -10,7 +10,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../classification-service/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
+      - ./classification-service/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
     networks:
       - article-network
     healthcheck:
