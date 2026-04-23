@@ -171,9 +171,9 @@ public class PublicationController {
         enforceAllowedPublicationWrite();
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean isChercheur = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_CHERCHEUR".equals(a.getAuthority()));
+                .anyMatch(a -> "ROLE_RESEARCHER".equals(a.getAuthority()));
         if (isChercheur && !publicationService.isOwner(publicationId, authentication.getName())) {
-            throw new AccessDeniedException("CHERCHEUR can only manage their own publications");
+            throw new AccessDeniedException("RESEARCHER can only manage their own publications");
         }
     }
 
@@ -186,8 +186,8 @@ public class PublicationController {
         boolean allowed = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(authority -> authority.equals("ROLE_ADMIN")
-                        || authority.equals("ROLE_MODERATEUR")
-                        || authority.equals("ROLE_CHERCHEUR"));
+                        || authority.equals("ROLE_MODERATOR")
+                        || authority.equals("ROLE_RESEARCHER"));
         if (!allowed) {
             throw new AccessDeniedException("You are not allowed to manage publications");
         }
