@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.dto.ClassificationRequestDTO;
 import com.example.demo.dto.ClassificationResponseDTO;
+import com.example.demo.dto.PersonalizedRecommendationRequest;
 import com.example.demo.model.Publication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.Collections;
+import java.util.List;
+import com.example.demo.dto.RecommendationDTO;
+import java.util.Map;
 
 /**
  * HTTP client for the Python classification microservice.
@@ -75,5 +81,27 @@ public class ClassificationServiceClient {
                     url, e.getMessage(), publication.getId());
             return null;
         }
+    }
+
+    /**
+     * Get personalized recommendations from the Python service.
+     */
+    public List<RecommendationDTO> getPersonalizedRecommendations(List<Long> upvotedIds, List<Long> downvotedIds, int limit) {
+        String url = classificationServiceUrl + "/recommend/personalized";
+        PersonalizedRecommendationRequest request = 
+            new PersonalizedRecommendationRequest(upvotedIds, downvotedIds, limit);
+
+        try {
+            // Using parameterized type reference to properly handle List<RecommendationDTO>
+            ResponseEntity<RecommendationDTO[]> response = restTemplate.postForEntity(url, request, RecommendationDTO[].class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                RecommendationDTO[] body = response.getBody();
+                log.info("Received {} recommendations with scores from AI service", body.length);
+                return java.util.Arrays.asList(body);
+            }
+        } catch (RestClientException e) {
+            log.error("Failed to get personal recommendations from AI service ({}): {}", url, e.getMessage());
+        }
+        return java.util.Collections.emptyList();
     }
 }

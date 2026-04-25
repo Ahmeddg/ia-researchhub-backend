@@ -112,6 +112,30 @@ public class PublicationController {
         return ResponseEntity.ok(publications);
     }
 
+    @GetMapping("/personalized")
+    @Operation(summary = "Get publications personalized for the current user")
+    public ResponseEntity<List<Publication>> getPersonalizedRecommendations() {
+        return ResponseEntity.ok(publicationService.getPersonalizedRecommendations(currentUsername()));
+    }
+
+    @GetMapping("/new")
+    @Operation(summary = "Get latest publications")
+    public ResponseEntity<List<Publication>> getNewPublications() {
+        return ResponseEntity.ok(publicationService.getNewPublications());
+    }
+
+    @GetMapping("/top")
+    @Operation(summary = "Get top-rated publications")
+    public ResponseEntity<List<Publication>> getTopPublications() {
+        return ResponseEntity.ok(publicationService.getTopPublications());
+    }
+
+    @GetMapping("/hot")
+    @Operation(summary = "Get trending (hot) publications")
+    public ResponseEntity<List<Publication>> getHotPublications() {
+        return ResponseEntity.ok(publicationService.getHotPublications());
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get publication by ID")
     public ResponseEntity<Publication> getPublicationById(
@@ -165,20 +189,33 @@ public class PublicationController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── Security helpers ──────────────────────────────────────────────────────
-
-    private void enforceOwnershipForChercheur(Long publicationId) {
-        enforceAllowedPublicationWrite();
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        boolean isChercheur = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_RESEARCHER".equals(a.getAuthority()));
-        if (isChercheur && !publicationService.isOwner(publicationId, authentication.getName())) {
-            throw new AccessDeniedException("RESEARCHER can only manage their own publications");
-        }
+    @PostMapping("/{id}/upvote")
+    @Operation(summary = "Upvote a publication")
+    public ResponseEntity<Publication> upvotePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
+        enforceAllowedVote();
+        Publication updated = publicationService.upvote(id, currentUsername());
+        return ResponseEntity.ok(updated);
     }
 
-    private String currentUsername() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
+    @PostMapping("/{id}/downvote")
+    @Operation(summary = "Downvote a publication")
+    public ResponseEntity<Publication> downvotePublication(@PathVariable("id") @Parameter(description = "Publication ID") Long id) {
+        enforceAllowedVote();
+        Publication updated = publicationService.downvote(id, currentUsername());
+        return ResponseEntity.ok(updated);
+    }
+
+    private void enforceAllowedVote() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean allowed = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(authority -> authority.equals("ROLE_ADMIN")
+                        || authority.equals("ROLE_MODERATOR")
+                        || authority.equals("ROLE_RESEARCHER")
+                        || authority.equals("ROLE_USER"));
+        if (!allowed) {
+            throw new AccessDeniedException("You are not allowed to vote");
+        }
     }
 
     private void enforceAllowedPublicationWrite() {
@@ -191,5 +228,18 @@ public class PublicationController {
         if (!allowed) {
             throw new AccessDeniedException("You are not allowed to manage publications");
         }
+    }
+
+    private void enforceOwnershipForChercheur(Long publicationId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isChercheur = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_RESEARCHER".equals(a.getAuthority()));
+        if (isChercheur && !publicationService.isOwner(publicationId, authentication.getName())) {
+            throw new AccessDeniedException("RESEARCHER can only manage their own publications");
+        }
+    }
+
+    private String currentUsername() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 }

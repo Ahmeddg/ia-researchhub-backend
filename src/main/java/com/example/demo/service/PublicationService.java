@@ -39,7 +39,15 @@ public interface PublicationService {
 
     boolean isOwner(Long publicationId, String username);
     
-    Publication upvote(Long id);
+    Publication upvote(Long id, String username);
     
-    Publication downvote(Long id);
+    Publication downvote(Long id, String username);
+
+    List<Publication> getPersonalizedRecommendations(String username);
+
+    List<Publication> getNewPublications();
+
+    List<Publication> getTopPublications();
+
+    List<Publication> getHotPublications();
 }

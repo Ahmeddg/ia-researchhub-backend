@@ -39,7 +39,9 @@ public class AiController {
                 .filter(p -> p.getClusterId() != null)
                 .collect(Collectors.toMap(
                         p -> p.getClusterId(),
-                        p -> p.getClusterLabel(),
+                p -> p.getClusterLabel() != null && !p.getClusterLabel().isBlank()
+                    ? p.getClusterLabel()
+                    : "Cluster " + p.getClusterId(),
                         (existing, replacement) -> existing
                 ));
 

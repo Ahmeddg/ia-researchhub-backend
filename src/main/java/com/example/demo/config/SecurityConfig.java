@@ -84,6 +84,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/news/**")
                         .hasAnyRole("MODERATOR", "ADMIN")
 
+                        // Voting - Any authenticated user
+                        .requestMatchers(HttpMethod.POST, "/api/publications/*/upvote").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/publications/*/downvote").authenticated()
+
                         // Publications - MODERATOR, RESEARCHER, ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/publications/**")
                         .hasAnyRole("MODERATOR", "RESEARCHER", "ADMIN")

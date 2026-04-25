@@ -19,4 +19,11 @@ public interface PublicationRepository extends JpaRepository<Publication, Long> 
     boolean existsByIdAndCreatedByUsername(Long id, String username);
 
     long countByDomainId(Long domainId);
+
+    List<Publication> findAllByOrderByPublicationDateDesc();
+
+    List<Publication> findAllByOrderByUpvotesDesc();
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM Publication p ORDER BY (COALESCE(p.upvotes, 0) + COALESCE(p.downvotes, 0)) DESC")
+    List<Publication> findHotPublications();
 }

@@ -5,8 +5,11 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "researchers")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Researcher {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

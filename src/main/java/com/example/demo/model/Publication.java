@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "publications")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Publication {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,13 +58,9 @@ public class Publication {
     @JsonIgnore
     private User createdBy;
 
-    // ── Publication lifecycle status ─────────────────────────────────────────
-    /** DRAFT = saved but awaiting user confirmation after AI classification.
-     *  PUBLISHED = confirmed and visible to all. */
     @Column(name = "status", nullable = false)
     private String status = "PUBLISHED";
 
-    // ── AI Cluster Assignment (written by Python classification service) ──────
     @Column(name = "cluster_id")
     private Integer clusterId;
 
@@ -75,12 +73,9 @@ public class Publication {
     @Column(name = "suggested_cluster_label", length = 200)
     private String suggestedClusterLabel;
 
-    // ── User-approved AI metadata (stored after user review) ─────────────────
-    /** JSON array of approved CategoryPrediction objects */
     @Column(name = "ai_categories", columnDefinition = "TEXT")
     private String aiCategories;
 
-    /** JSON array of approved keyword strings */
     @Column(name = "ai_keywords", columnDefinition = "TEXT")
     private String aiKeywords;
 
@@ -93,8 +88,13 @@ public class Publication {
     @Column(name = "downvotes")
     private Integer downvotes = 0;
 
-    public Publication() {
-    }
+    @Transient
+    private Double similarityScore;
+
+    @Transient
+    private Boolean upvotedByUser = false;
+
+    public Publication() {}
 
     public Publication(String title, String abstractText, Domain domain) {
         this.title = title;
@@ -102,8 +102,7 @@ public class Publication {
         this.domain = domain;
     }
 
-    // ── Getters & Setters ─────────────────────────────────────────────────────
-
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -164,9 +163,15 @@ public class Publication {
     public Double getAiConfidence() { return aiConfidence; }
     public void setAiConfidence(Double aiConfidence) { this.aiConfidence = aiConfidence; }
 
-    public Integer getUpvotes() { return upvotes != null ? upvotes : 0; }
-    public void setUpvotes(Integer upvotes) { this.upvotes = upvotes; }
+    public int getUpvotes() { return upvotes != null ? upvotes : 0; }
+    public void setUpvotes(int upvotes) { this.upvotes = upvotes; }
 
-    public Integer getDownvotes() { return downvotes != null ? downvotes : 0; }
-    public void setDownvotes(Integer downvotes) { this.downvotes = downvotes; }
+    public int getDownvotes() { return downvotes != null ? downvotes : 0; }
+    public void setDownvotes(int downvotes) { this.downvotes = downvotes; }
+
+    public Double getSimilarityScore() { return similarityScore; }
+    public void setSimilarityScore(Double similarityScore) { this.similarityScore = similarityScore; }
+
+    public Boolean getUpvotedByUser() { return upvotedByUser; }
+    public void setUpvotedByUser(Boolean upvotedByUser) { this.upvotedByUser = upvotedByUser; }
 }
