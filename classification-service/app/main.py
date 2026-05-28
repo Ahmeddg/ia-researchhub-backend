@@ -25,6 +25,7 @@ from app.db import (
     get_cluster_member_publication_ids,
     get_clustering_run_log,
     get_recent_corrections,
+    get_taxonomy_tree,
 )
 from app.clustering import assign_cluster
 from app.recluster import recluster_all
@@ -53,6 +54,7 @@ from app.schemas import (
     SystemConfig,
     SystemConfigUpdate,
     CorrectionEntry,
+    TaxonomyTreeResponse,
 )
 
 
@@ -427,6 +429,19 @@ async def update_system_config(update: SystemConfigUpdate):
     except Exception as e:
         logger.error(f"Error updating config: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")
+
+
+@app.get("/taxonomy", response_model=TaxonomyTreeResponse)
+async def get_taxonomy():
+    """
+    Get the L1/L2 hierarchical taxonomy tree of clusters.
+    """
+    try:
+        tree = get_taxonomy_tree()
+        return TaxonomyTreeResponse(**tree)
+    except Exception as e:
+        logger.error(f"Error fetching taxonomy tree: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch taxonomy tree: {str(e)}")
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────

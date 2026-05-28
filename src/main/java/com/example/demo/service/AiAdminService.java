@@ -206,6 +206,21 @@ public class AiAdminService {
         }
     }
 
+    // ── Taxonomy ─────────────────────────────────────────────────────────────
+    
+    public Map<String, Object> getTaxonomy() {
+        try {
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    baseUrl + "/taxonomy", HttpMethod.GET, null,
+                    new ParameterizedTypeReference<>() {});
+            return resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null
+                    ? resp.getBody() : Collections.emptyMap();
+        } catch (RestClientException e) {
+            log.warn("Failed to fetch taxonomy: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private Map<String, Object> fallbackDown() {

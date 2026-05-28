@@ -1516,3 +1516,81 @@ def get_recent_corrections(page: int = 0, page_size: int = 20) -> list[dict]:
             return result
     finally:
         conn.close()
+
+
+def get_taxonomy_tree() -> dict:
+    """
+    Get the full taxonomy tree, grouping clusters by L1 and L2 labels.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    c.id as cluster_id, 
+                    c.label as cluster_label, 
+                    c.member_count,
+                    h.l1_id, h.l1_label, 
+                    h.l2_id, h.l2_label
+                FROM clusters c
+                LEFT JOIN cluster_hierarchy h ON c.id = h.cluster_id
+                ORDER BY h.l1_label NULLS LAST, h.l2_label NULLS LAST, c.member_count DESC
+            """)
+            
+            l1_dict = {}
+            unassigned = []
+            
+            for row in cur.fetchall():
+                cluster_node = {
+                    "cluster_id": row["cluster_id"],
+                    "label": row["cluster_label"] or f"Cluster {row['cluster_id']}",
+                    "member_count": row["member_count"] or 0
+                }
+                
+                l1_id = row["l1_id"]
+                l1_label = row["l1_label"]
+                l2_id = row["l2_id"]
+                l2_label = row["l2_label"]
+                
+                if l1_id is None or l1_label is None:
+                    unassigned.append(cluster_node)
+                    continue
+                    
+                if l1_id not in l1_dict:
+                    l1_dict[l1_id] = {
+                        "l1_id": l1_id,
+                        "l1_label": l1_label,
+                        "l2_nodes": {}
+                    }
+                
+                if l2_id is None or l2_label is None:
+                    # Treat missing L2 as its own special L2 node or just add it.
+                    # We'll assign it a dummy L2 ID so it shows up.
+                    l2_id = -1
+                    l2_label = "Uncategorized Sub-topics"
+                
+                if l2_id not in l1_dict[l1_id]["l2_nodes"]:
+                    l1_dict[l1_id]["l2_nodes"][l2_id] = {
+                        "l2_id": l2_id,
+                        "l2_label": l2_label,
+                        "clusters": []
+                    }
+                
+                l1_dict[l1_id]["l2_nodes"][l2_id]["clusters"].append(cluster_node)
+                
+            # Convert dicts to lists
+            l1_nodes = []
+            for l1_val in l1_dict.values():
+                l2_list = list(l1_val["l2_nodes"].values())
+                l1_nodes.append({
+                    "l1_id": l1_val["l1_id"],
+                    "l1_label": l1_val["l1_label"],
+                    "l2_nodes": l2_list
+                })
+                
+            return {
+                "l1_nodes": l1_nodes,
+                "unassigned_clusters": unassigned
+            }
+    finally:
+        conn.close()

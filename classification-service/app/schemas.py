@@ -326,3 +326,30 @@ class CorrectionEntry(BaseModel):
     corrected_by: str | None = None
     confidence: float | None = None
     timestamp: datetime
+
+
+class TaxonomyClusterNode(BaseModel):
+    """Leaf node in the taxonomy tree (an actual cluster)."""
+    cluster_id: int
+    label: str
+    member_count: int
+
+
+class TaxonomyL2Node(BaseModel):
+    """L2 node in the taxonomy tree."""
+    l2_id: int
+    l2_label: str
+    clusters: list[TaxonomyClusterNode]
+
+
+class TaxonomyL1Node(BaseModel):
+    """L1 node in the taxonomy tree."""
+    l1_id: int
+    l1_label: str
+    l2_nodes: list[TaxonomyL2Node]
+
+
+class TaxonomyTreeResponse(BaseModel):
+    """Full taxonomy tree response."""
+    l1_nodes: list[TaxonomyL1Node]
+    unassigned_clusters: list[TaxonomyClusterNode]

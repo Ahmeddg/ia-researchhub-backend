@@ -116,4 +116,12 @@ public class AiController {
     public ResponseEntity<Map<String, Object>> updateSystemConfig(@RequestBody Map<String, Object> payload) {
         return ResponseEntity.ok(aiAdminService.updateSystemConfig(payload));
     }
+
+    // ── Section 7: Taxonomy ──────────────────────────────────────────────────
+
+    @GetMapping("/taxonomy")
+    @Operation(summary = "Get the hierarchical CAH taxonomy tree")
+    public ResponseEntity<Map<String, Object>> getTaxonomy() {
+        return ResponseEntity.ok(aiAdminService.getTaxonomy());
+    }
 }
