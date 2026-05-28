@@ -527,6 +527,14 @@ def update_cluster_centroid_running_mean(cluster_id: int, new_embedding: list[fl
                     updated_at = NOW()
                 WHERE id = %s;
             """, (new_centroid, new_count, cluster_id))
+
+            # Also keep cluster_metrics in sync immediately
+            cur.execute("""
+                UPDATE cluster_metrics
+                SET member_count = %s
+                WHERE cluster_id = %s;
+            """, (new_count, cluster_id))
+
             conn.commit()
     finally:
         conn.close()
@@ -1592,5 +1600,30 @@ def get_taxonomy_tree() -> dict:
                 "l1_nodes": l1_nodes,
                 "unassigned_clusters": unassigned
             }
+    finally:
+        conn.close()
+
+
+def sync_cluster_metrics_counts() -> dict:
+    """
+    Sync member_count in cluster_metrics from the authoritative clusters table.
+
+    Runs a single SQL UPDATE ... FROM so it is atomic and fast.
+    Returns a summary with the number of rows updated.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE cluster_metrics cm
+                SET member_count = c.member_count,
+                    computed_at  = NOW()
+                FROM clusters c
+                WHERE cm.cluster_id = c.id
+                  AND cm.member_count IS DISTINCT FROM c.member_count;
+            """)
+            updated = cur.rowcount
+            conn.commit()
+        return {"updated_rows": updated}
     finally:
         conn.close()

@@ -26,6 +26,7 @@ from app.db import (
     get_clustering_run_log,
     get_recent_corrections,
     get_taxonomy_tree,
+    sync_cluster_metrics_counts,
 )
 from app.clustering import assign_cluster
 from app.recluster import recluster_all
@@ -151,8 +152,9 @@ async def classify_publication(request: ClassifyRequest, background_tasks: Backg
             pdf_url=request.pdf_url,
         )
 
-        # Queue the job check asynchronously
+        # Queue background tasks: trigger check + sync metrics counts
         background_tasks.add_task(check_and_trigger_reclustering)
+        background_tasks.add_task(sync_cluster_metrics_counts)
 
         return ClassifyResponse(
             publication_id=request.publication_id,
@@ -442,6 +444,22 @@ async def get_taxonomy():
     except Exception as e:
         logger.error(f"Error fetching taxonomy tree: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch taxonomy tree: {str(e)}")
+
+
+@app.post("/sync-metrics", response_model=dict)
+async def sync_metrics():
+    """
+    Sync cluster_metrics.member_count from the authoritative clusters table.
+
+    Call this after any incremental classification to ensure the metrics
+    table reflects the current cluster sizes without waiting for a full recluster.
+    """
+    try:
+        result = sync_cluster_metrics_counts()
+        return {"status": "ok", **result}
+    except Exception as e:
+        logger.error(f"Error syncing cluster metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────
