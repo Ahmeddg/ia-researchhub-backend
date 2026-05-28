@@ -2,6 +2,7 @@
 Pydantic request/response models for the classification API.
 """
 
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -85,8 +86,8 @@ class ReclusterResponse(BaseModel):
 class ClusteringRunLogEntry(BaseModel):
     """One row from the clustering_run_log table."""
     id: int
-    started_at: str
-    finished_at: str
+    started_at: datetime
+    finished_at: datetime
     duration_seconds: float | None = None
     total_publications: int | None = None
     clusters_before: int | None = None
@@ -131,6 +132,6 @@ class ClusterMetricsResponse(BaseModel):
     correction_rate_30d: float | None = None
     pending_inflow_rate: float | None = None
     centroid_drift: float | None = None
-    last_label_updated_at: str | None = None
+    last_label_updated_at: datetime | None = None
     exemplar_coverage: float | None = None
-    computed_at: str | None = None
+    computed_at: datetime | None = None

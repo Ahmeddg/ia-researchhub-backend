@@ -188,6 +188,35 @@ async def list_clusters():
     return [ClusterInfo(**c) for c in clusters]
 
 
+@app.get("/clusters/metrics", response_model=list[ClusterMetricsResponse])
+async def get_clusters_metrics(order_by: str = "computed_at", descending: bool = True):
+    """
+    Get per-cluster metrics for all clusters.
+    
+    Returns quality and performance indicators for each cluster including:
+    - Intra-cluster mean similarity (cohesion)
+    - Member count
+    - Correction rate (30-day window)
+    - Pending inflow rate
+    - Centroid drift
+    - Label update timestamp
+    - Exemplar coverage
+    
+    Args:
+        order_by: Column to order by (e.g., 'correction_rate_30d', 'centroid_drift', 'computed_at')
+        descending: If True, order DESC, else ASC
+    
+    Returns:
+        List of ClusterMetricsResponse objects
+    """
+    try:
+        metrics = get_all_cluster_metrics(order_by=order_by, descending=descending)
+        return [ClusterMetricsResponse(**m) for m in metrics]
+    except Exception as e:
+        logger.error(f"Error fetching cluster metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch cluster metrics: {str(e)}")
+
+
 @app.get("/clusters/{cluster_id}", response_model=ClusterDetail)
 async def get_cluster(cluster_id: int):
     """Get detailed information about a specific cluster."""
@@ -224,10 +253,30 @@ async def submit_correction(request: SubmitCorrectionRequest):
             confidence=request.confidence
         )
         
+        # Update the publication's cluster assignment
+        correct_cluster = get_cluster_detail(request.correct_cluster_id)
+        if correct_cluster:
+            from app.db import get_connection
+            conn = get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE publications 
+                        SET cluster_id = %s, cluster_label = %s, 
+                            suggested_cluster_id = NULL, suggested_cluster_label = NULL 
+                        WHERE id = %s
+                    """, (request.correct_cluster_id, correct_cluster.get("label"), request.publication_id))
+                    conn.commit()
+            finally:
+                conn.close()
+        
         # Seed exemplars for the correct cluster
         exemplars_seeded = False
         try:
             pub_ids = get_cluster_member_publication_ids(request.correct_cluster_id)
+            if request.publication_id not in pub_ids:
+                pub_ids.append(request.publication_id)
+                
             if pub_ids:
                 refresh_cluster_exemplars({request.correct_cluster_id: pub_ids})
                 exemplars_seeded = True
@@ -248,33 +297,7 @@ async def submit_correction(request: SubmitCorrectionRequest):
         raise HTTPException(status_code=500, detail=f"Failed to submit correction: {str(e)}")
 
 
-@app.get("/clusters/metrics", response_model=list[ClusterMetricsResponse])
-async def get_clusters_metrics(order_by: str = "computed_at", descending: bool = True):
-    """
-    Get per-cluster metrics for all clusters.
-    
-    Returns quality and performance indicators for each cluster including:
-    - Intra-cluster mean similarity (cohesion)
-    - Member count
-    - Correction rate (30-day window)
-    - Pending inflow rate
-    - Centroid drift
-    - Label update timestamp
-    - Exemplar coverage
-    
-    Args:
-        order_by: Column to order by (e.g., 'correction_rate_30d', 'centroid_drift', 'computed_at')
-        descending: If True, order DESC, else ASC
-    
-    Returns:
-        List of ClusterMetricsResponse objects
-    """
-    try:
-        metrics = get_all_cluster_metrics(order_by=order_by, descending=descending)
-        return [ClusterMetricsResponse(**m) for m in metrics]
-    except Exception as e:
-        logger.error(f"Error fetching cluster metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch cluster metrics: {str(e)}")
+
 
 
 @app.get("/recommendations/{publication_id}", response_model=list[RecommendationResponse])

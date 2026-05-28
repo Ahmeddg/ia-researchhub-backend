@@ -109,3 +109,5 @@ def reembed_all() -> None:
 
 if __name__ == "__main__":
     reembed_all()
+    # summary = recluster_all()
+    # print(f"Re-embed complete. Summary: {summary}")

@@ -200,6 +200,15 @@ def init_db():
                 );
             """)
 
+            # Phase 4: Dynamic Configuration Panel
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS system_config (
+                    key VARCHAR(100) PRIMARY KEY,
+                    value VARCHAR(255) NOT NULL,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+
             conn.commit()
             print("Database initialized: pgvector extension enabled, tables created.")
     finally:
@@ -779,7 +788,8 @@ def reset_clusters():
             except psycopg2.errors.UndefinedColumn:
                 conn.rollback()
                 cur.execute("UPDATE publications SET cluster_id = NULL, cluster_label = NULL;")
-            cur.execute("DELETE FROM clusters;")
+            # Use TRUNCATE CASCADE to clear clusters and all dependent tables (metrics, hierarchy, exemplars)
+            cur.execute("TRUNCATE TABLE clusters CASCADE;")
             conn.commit()
     finally:
         conn.close()
@@ -1452,11 +1462,28 @@ def get_clustering_run_log(limit: int = 20) -> list[dict]:
             )
             result = []
             for row in cur.fetchall():
-                d = dict(row)
-                for key in ("started_at", "finished_at"):
-                    if d.get(key) is not None:
-                        d[key] = d[key].isoformat()
-                result.append(d)
+                # Convert datetime to ISO string
+                row["started_at"] = row["started_at"].isoformat()
+                row["finished_at"] = row["finished_at"].isoformat()
+                result.append(row)
             return result
+    finally:
+        conn.close()
+
+
+def upsert_system_config(key: str, value: str) -> None:
+    """
+    Insert or update a system configuration key-value pair.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO system_config (key, value, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (key) DO UPDATE 
+                SET value = EXCLUDED.value, updated_at = NOW();
+            """, (key, str(value)))
+            conn.commit()
     finally:
         conn.close()

@@ -88,8 +88,9 @@ def _compute_cah_hierarchy(centroids_matrix: np.ndarray, cluster_ids: list[int])
         }
     
     try:
-        # Compute pairwise cosine distances (1 - cosine_similarity)
-        distances = pdist(centroids_matrix, metric='cosine')
+        # Compute pairwise distances. Since embeddings are L2 normalized,
+        # we can use euclidean distance to be compatible with ward linkage
+        distances = pdist(centroids_matrix, metric='euclidean')
         
         # Perform hierarchical clustering using Ward's method on the distance matrix
         Z = linkage(distances, method='ward')
@@ -136,56 +137,76 @@ def _assign_semantic_taxonomy_labels(
     cluster_info: dict[int, dict]
 ) -> dict[int, dict]:
     """
-    Replace L1/L2 placeholder labels with semantic labels using Gemma.
+    Spawns a background thread to generate semantic labels for L1/L2 and update the DB.
+    Returns the cah_hierarchy unmodified (with placeholders) to not block the main recluster loop.
     """
+    import threading
     if not cah_hierarchy:
         return cah_hierarchy
 
-    l1_groups: dict[int, list[int]] = {}
-    l2_groups: dict[int, list[int]] = {}
-    for cid, info in cah_hierarchy.items():
-        l1_id = info.get("l1_id")
-        l2_id = info.get("l2_id")
-        if l1_id is not None:
-            l1_groups.setdefault(int(l1_id), []).append(cid)
-        if l2_id is not None:
-            l2_groups.setdefault(int(l2_id), []).append(cid)
+    def _async_labeling():
+        l1_groups: dict[int, list[int]] = {}
+        l2_groups: dict[int, list[int]] = {}
+        for cid, info in cah_hierarchy.items():
+            l1_id = info.get("l1_id")
+            l2_id = info.get("l2_id")
+            if l1_id is not None:
+                l1_groups.setdefault(int(l1_id), []).append(cid)
+            if l2_id is not None:
+                l2_groups.setdefault(int(l2_id), []).append(cid)
 
-    l1_labels: dict[int, str] = {}
-    for l1_id, cids in l1_groups.items():
-        items = []
-        for cid in cids:
-            label = cluster_info.get(cid, {}).get("label")
+        l1_labels: dict[int, str] = {}
+        for l1_id, cids in l1_groups.items():
+            items = []
+            for cid in cids:
+                label = cluster_info.get(cid, {}).get("label")
+                if label:
+                    items.append(label)
+            label = generate_taxonomy_label(items, level="L1")
             if label:
-                items.append(label)
-        label = generate_taxonomy_label(items, level="L1")
-        if label:
-            l1_labels[l1_id] = label
+                l1_labels[l1_id] = label
 
-    l2_labels: dict[int, str] = {}
-    for l2_id, cids in l2_groups.items():
-        items = []
-        parent_label = None
-        if cids:
-            parent_l1 = cah_hierarchy.get(cids[0], {}).get("l1_id")
-            if parent_l1 is not None:
-                parent_label = l1_labels.get(int(parent_l1))
-        for cid in cids:
-            label = cluster_info.get(cid, {}).get("label")
+        l2_labels: dict[int, str] = {}
+        for l2_id, cids in l2_groups.items():
+            items = []
+            parent_label = None
+            if cids:
+                parent_l1 = cah_hierarchy.get(cids[0], {}).get("l1_id")
+                if parent_l1 is not None:
+                    parent_label = l1_labels.get(int(parent_l1))
+            for cid in cids:
+                label = cluster_info.get(cid, {}).get("label")
+                if label:
+                    items.append(label)
+            label = generate_taxonomy_label(items, level="L2", parent_label=parent_label)
             if label:
-                items.append(label)
-        label = generate_taxonomy_label(items, level="L2", parent_label=parent_label)
-        if label:
-            l2_labels[l2_id] = label
+                l2_labels[l2_id] = label
 
-    for cid, info in cah_hierarchy.items():
-        l1_id = info.get("l1_id")
-        l2_id = info.get("l2_id")
-        if l1_id is not None and int(l1_id) in l1_labels:
-            info["l1_label"] = l1_labels[int(l1_id)]
-        if l2_id is not None and int(l2_id) in l2_labels:
-            info["l2_label"] = l2_labels[int(l2_id)]
+        from app.db import get_connection
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                for cid, info in cah_hierarchy.items():
+                    l1_id = info.get("l1_id")
+                    l2_id = info.get("l2_id")
+                    l1_lbl = l1_labels.get(int(l1_id)) if l1_id is not None else None
+                    l2_lbl = l2_labels.get(int(l2_id)) if l2_id is not None else None
+                    if l1_lbl or l2_lbl:
+                        cur.execute("""
+                            UPDATE cluster_hierarchy 
+                            SET l1_label = COALESCE(%s, l1_label), 
+                                l2_label = COALESCE(%s, l2_label), 
+                                updated_at = NOW()
+                            WHERE cluster_id = %s
+                        """, (l1_lbl, l2_lbl, cid))
+                conn.commit()
+            logger.info("Background CAH taxonomy labeling completed.")
+        except Exception as e:
+            logger.error(f"Error updating CAH taxonomy labels in DB: {e}")
+        finally:
+            conn.close()
 
+    threading.Thread(target=_async_labeling, daemon=True).start()
     return cah_hierarchy
 
 
@@ -382,12 +403,12 @@ def _compute_cluster_domain_prior(cluster_id: int, pub_ids: list[int]) -> tuple[
         conn = get_connection()
         try:
             with conn.cursor() as cur:
-                # Vote from publication domains
+                # Vote from publication domains (using domain_id instead of domain)
                 cur.execute("""
-                    SELECT domain, COUNT(*) as count
+                    SELECT CAST(domain_id AS VARCHAR) as domain, COUNT(*) as count
                     FROM publications
-                    WHERE id = ANY(%s) AND domain IS NOT NULL
-                    GROUP BY domain;
+                    WHERE id = ANY(%s) AND domain_id IS NOT NULL
+                    GROUP BY domain_id;
                 """, (pub_ids,))
                 domain_votes = {row[0]: int(row[1]) for row in cur.fetchall()}
 
@@ -463,9 +484,11 @@ def recluster_all() -> dict:
         return {"total_publications": total, "clusters_found": 0, "noise_points": total}
 
     # Run HDBSCAN
+    # Note: Since embeddings are L2 normalized, euclidean distance is monotonically
+    # equivalent to cosine distance, and it avoids sklearn's unsupported metric error.
     clusterer = hdbscan.HDBSCAN(
         min_cluster_size=settings.HDBSCAN_MIN_CLUSTER_SIZE,
-        metric="cosine",
+        metric="euclidean",
         cluster_selection_method="eom",  # Excess of Mass
     )
     labels = clusterer.fit_predict(embeddings)
