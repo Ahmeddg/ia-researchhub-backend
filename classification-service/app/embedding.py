@@ -3,6 +3,7 @@ Embedding generation using sentence-transformers.
 Loads the model once at module level and provides a function to generate embeddings.
 """
 
+import math
 from sentence_transformers import SentenceTransformer
 from app.config import settings
 
@@ -25,9 +26,21 @@ def is_model_loaded() -> bool:
     return _model is not None
 
 
+def assert_l2_normalized(embedding: list[float] | object, tolerance: float = 1e-3) -> None:
+    """
+    Ensure embeddings are L2-normalized before any distance computation.
+    """
+    squared_sum = 0.0
+    for value in embedding:
+        squared_sum += float(value) ** 2
+    norm = math.sqrt(squared_sum)
+    if abs(norm - 1.0) > tolerance:
+        raise ValueError(f"Embedding is not L2-normalized (norm={norm:.6f}).")
+
+
 def get_embedding(text: str) -> list[float]:
     """
-    Generate a 384-dimensional embedding vector from text.
+    Generate a 768-dimensional embedding vector from text.
 
     Args:
         text: The input text (abstract, title, or combined).
@@ -37,6 +50,7 @@ def get_embedding(text: str) -> list[float]:
     """
     model = load_model()
     embedding = model.encode(text, normalize_embeddings=True)
+    assert_l2_normalized(embedding)
     return embedding.tolist()
 
 
@@ -52,4 +66,6 @@ def get_embeddings_batch(texts: list[str]) -> list[list[float]]:
     """
     model = load_model()
     embeddings = model.encode(texts, normalize_embeddings=True, batch_size=32)
+    for embedding in embeddings:
+        assert_l2_normalized(embedding)
     return [e.tolist() for e in embeddings]

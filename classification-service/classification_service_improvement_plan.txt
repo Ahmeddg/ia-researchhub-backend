@@ -1,0 +1,464 @@
+=============================================================================
+  SCIENTIFIC PUBLICATION CLASSIFICATION SERVICE — IMPROVEMENT PLAN
+=============================================================================
+
+Current stack:  sentence-transformers (all-MiniLM-L6-v2) → pgvector cosine
+                → Gemma 3 (Ollama) → HDBSCAN batch clustering
+                → PostgreSQL advisory lock, every-10-paper trigger
+
+=============================================================================
+  PHASE 1 — FOUNDATION: Fix the Core Inconsistencies
+  (Do this first — everything downstream depends on it)
+=============================================================================
+
+1.1  Replace all-MiniLM-L6-v2 with SPECTER2
+─────────────────────────────────────────────
+Impact: HIGH | Effort: LOW
+
+Problem:
+  all-MiniLM-L6-v2 is trained on general web text. It treats scientific
+  terms ("deep learning", "neural network", "gradient descent") as everyday
+  language rather than domain concepts. This degrades cluster quality at
+  the source — every subsequent step inherits the noise.
+
+Fix:
+  Swap to SPECTER2 (Allen AI). It is fine-tuned on scientific papers using
+  citation graphs, producing 768-dim vectors that understand domain jargon,
+  methodology names, and cross-discipline relationships. It is a drop-in
+  replacement via sentence-transformers.
+
+  If your corpus is predominantly biomedical, consider BiomedBERT instead.
+
+  After swapping: re-embed all existing papers once and rebuild all
+  cluster centroids from the new vectors. This is a one-time migration cost.
+
+Action:
+  pip install sentence-transformers
+  model = SentenceTransformer("allenai-specter")  # or "allenai/specter2"
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+1.2  Unify Distance Metric — Cosine Everywhere
+────────────────────────────────────────────────
+Impact: HIGH | Effort: LOW
+
+Problem:
+  Your /classify endpoint uses cosine similarity via pgvector's <=> operator,
+  but HDBSCAN runs with metric="euclidean". On normalized vectors, these
+  produce different cluster boundaries. The clusters discovered by HDBSCAN
+  are geometrically inconsistent with what the online assignment step
+  expects, creating silent mismatches.
+
+Fix:
+  Set HDBSCAN(metric="cosine") explicitly.
+
+  Note: on perfectly L2-normalized vectors, euclidean distance is
+  monotonically equivalent to cosine distance — but being explicit removes
+  ambiguity, avoids bugs if normalization is ever skipped, and makes the
+  code intention clear.
+
+  Add an assertion before any distance computation to verify embeddings are
+  always L2-normalized. Fail loudly if not.
+
+Action:
+  clusterer = hdbscan.HDBSCAN(
+      min_cluster_size=10,
+      metric="cosine",
+      cluster_selection_method="eom"
+  )
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+1.3  Fix Centroid Drift — Recompute True Mean
+──────────────────────────────────────────────
+Impact: HIGH | Effort: LOW
+
+Problem:
+  Currently the centroid is nudged incrementally on each paper insertion.
+  After N papers, insertion order biases the centroid — recent papers have
+  proportionally more influence than older ones. The centroid progressively
+  drifts away from the true geometric center of the cluster.
+
+Fix:
+  Recompute the centroid as the true mean of ALL member embeddings at the
+  end of each batch recluster. Do not update centroids per-insert.
+
+  If you need an approximate online update between batch runs, use a proper
+  running mean formula:
+
+    new_centroid = (old_centroid * n + new_vector) / (n + 1)
+
+  where n is the current member count at time of insertion. This is
+  mathematically correct (unlike the current nudge approach) and cheap.
+
+  Store member count in the clusters table to enable this formula.
+
+
+=============================================================================
+  PHASE 2 — STABILITY: Make Clusters Stable Across Recomputes
+  (Fixes the UX breakage — cluster IDs should not change under users)
+=============================================================================
+
+2.1  Stable Cluster IDs After HDBSCAN Reruns
+──────────────────────────────────────────────
+Impact: HIGH | Effort: MEDIUM
+
+Problem:
+  Every HDBSCAN rerun assigns cluster IDs from scratch (0, 1, 2 ...).
+  A paper in "cluster 7" may end up in "cluster 3" after the next run,
+  even if its topic hasn't changed. Users see labels change unexpectedly.
+  Any external system (UI filters, bookmarks, downstream pipelines) that
+  references a cluster ID breaks silently.
+
+Fix:
+  After each HDBSCAN run, match new clusters to old clusters using centroid
+  cosine similarity:
+
+    1. For each new cluster centroid, find the old cluster with the
+       highest cosine similarity.
+    2. If similarity >= 0.85, reuse the old cluster's ID and label.
+    3. If similarity < 0.85, assign a new UUID — this is a genuinely
+       new topic.
+
+  Use the Hungarian algorithm (scipy.optimize.linear_sum_assignment) for
+  globally optimal matching, or simple nearest-centroid greedy matching
+  for speed.
+
+  Add a cluster_lineage table:
+    (old_cluster_id, new_cluster_id, similarity_score, matched_at)
+
+  This provides an audit trail and supports UI migration logic.
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+2.2  Replace "Others" With a "Pending" Soft Assignment
+────────────────────────────────────────────────────────
+Impact: HIGH | Effort: MEDIUM
+
+Problem:
+  Papers below the 0.75 similarity threshold are immediately dumped into
+  cluster_id = -1 ("Others / Unclustered"). Many of these are papers in
+  an emerging topic that has not yet formed a centroid — not noise.
+  Once labelled "Others", they are excluded from the clustering process
+  and cannot graduate to a real cluster.
+
+Fix:
+  Introduce a pending status with three tiers:
+
+    similarity >= 0.75  →  assign to matching cluster (current behavior)
+    0.65 <= sim < 0.75  →  mark as "pending" with best suggested cluster
+    sim < 0.65          →  mark as "unconfirmed outlier"
+
+  Pending papers are included in the next HDBSCAN run. If they cluster
+  together with other pending papers, they graduate to a new real cluster.
+  Papers that remain outliers across 3+ consecutive HDBSCAN runs are
+  promoted to permanent "unclustered" status.
+
+  Add a pending_since and recluster_attempts column to the
+  publication_embeddings table.
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+2.3  Adaptive Similarity Thresholds Per Cluster
+─────────────────────────────────────────────────
+Impact: MEDIUM | Effort: MEDIUM
+
+Problem:
+  A global 0.75 threshold treats a tight cluster ("quantum error correction")
+  the same as a broad cluster ("interdisciplinary methods"). Tight clusters
+  get false positives at 0.75; broad clusters reject valid papers at 0.75.
+
+Fix:
+  After each HDBSCAN run, compute the intra-cluster mean cosine similarity
+  (average pairwise cosine between all member embeddings, or approximate
+  using a sample of 50 members for large clusters).
+
+  Store this as cluster_tightness in the clusters table.
+
+  Set assignment threshold dynamically:
+    threshold = cluster_tightness * 0.90
+
+  Cap between 0.60 (minimum — below this, assignment is unreliable)
+  and 0.88 (maximum — leave room for similar-but-new papers).
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+2.4  Smarter HDBSCAN Trigger Strategy
+───────────────────────────────────────
+Impact: MEDIUM | Effort: LOW
+
+Problem:
+  Running HDBSCAN every 10 papers is too frequent. HDBSCAN is expensive
+  (O(n^2) memory) and meaningless on tiny batches. The trigger also does
+  not check whether the new papers actually changed the cluster space.
+
+Fix:
+  Replace the every-10 trigger with a multi-condition trigger:
+
+    Run HDBSCAN when ANY of these conditions is true:
+      (a) >= 200 new papers have arrived since the last run
+      (b) The pending pool exceeds 50 papers
+      (c) 24 hours have elapsed since the last run (nightly fallback)
+
+  Keep the existing PostgreSQL advisory lock to prevent concurrent runs.
+
+  After each run, log: run duration, number of clusters before/after,
+  number of ID matches vs new assignments, and pending pool size change.
+
+
+=============================================================================
+  PHASE 3 — INTELLIGENCE: Integrate the Two Classification Signals
+  (Closes the gap between LLM-generated tags and vector clusters)
+=============================================================================
+
+3.1  Use Gemma to Name Clusters, Not Individual Papers
+────────────────────────────────────────────────────────
+Impact: HIGH | Effort: MEDIUM
+
+Problem:
+  Gemma currently generates categories and keywords per paper independently.
+  These labels are disconnected from your cluster taxonomy — a paper might
+  get the Gemma tag "machine learning" but belong to cluster 42 ("Bayesian
+  Optimization for Hyperparameter Search"). The two signals never reconcile.
+
+  TF-IDF is used to generate cluster-level labels, but it produces generic
+  stopword-heavy phrases that are not useful for navigation or search.
+
+Fix:
+  After each HDBSCAN run, for each cluster:
+
+    1. Sample the 5-10 papers closest to the centroid (most representative).
+    2. Send their titles and abstracts to Gemma with this prompt:
+
+       "The following papers form a coherent scientific research cluster.
+        Give this cluster:
+        - A concise name (max 5 words, specific not generic)
+        - A 2-3 sentence description of the research area
+        - 5 keywords that uniquely identify this cluster
+        Respond in JSON."
+
+    3. Store the result as the canonical cluster label and description.
+
+  For per-paper classification, Gemma's role shifts: instead of generating
+  free-form categories, it generates keywords that are compared against
+  cluster labels to produce an explainability score.
+
+  This makes Gemma labels cluster-level (taxonomy-aware) rather than
+  paper-level (free-form), eliminating the mismatch.
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+3.2  Replace Centroid-Only Assignment With kNN Exemplars
+──────────────────────────────────────────────────────────
+Impact: HIGH | Effort: MEDIUM
+
+Problem:
+  HDBSCAN discovers non-spherical, arbitrarily shaped clusters. A centroid
+  is only an accurate representative for spherical clusters. For elongated
+  or irregular clusters, a paper can be near the wrong cluster's centroid
+  yet genuinely belong to the right cluster. Assignment by centroid alone
+  misses this.
+
+Fix:
+  Maintain a set of "exemplar" embeddings per cluster — the K papers
+  closest to the centroid (K = 10 to 20, scaled to cluster size).
+
+  For online assignment at /classify:
+    1. Compute cosine similarity to the cluster centroid (fast, first pass).
+    2. For top-3 candidate clusters, compute average cosine similarity
+       to that cluster's exemplar set (shape-aware second pass).
+    3. Assign to the cluster with the highest exemplar-average similarity,
+       subject to the adaptive threshold from step 2.3.
+
+  Exemplars are refreshed at the end of each HDBSCAN run.
+
+  Store exemplar embeddings in a cluster_exemplars table:
+    (cluster_id, publication_id, distance_to_centroid)
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+3.3  Use Domain as a Soft Prior in Assignment
+──────────────────────────────────────────────
+Impact: MEDIUM | Effort: LOW
+
+Problem:
+  You already accept an optional domain field at /classify, but it is
+  unused in the assignment logic. A paper about "neural networks in genomics"
+  and one about "neural networks in robotics" may have very similar
+  embeddings, but domain should break the tie.
+
+Fix:
+  After each HDBSCAN run, tag each cluster with its dominant domain
+  derived from the domain fields of its member papers. Store as
+  cluster_dominant_domain in the clusters table.
+
+  During online assignment, apply a soft boost:
+    adjusted_similarity = cosine_similarity + 0.05 * domain_match
+
+  where domain_match = 1 if paper domain == cluster dominant domain, else 0.
+
+  This keeps domain as a soft prior, not a hard filter. It breaks ties
+  without overriding the embedding signal.
+
+
+=============================================================================
+  PHASE 4 — HIERARCHY & LEARNING: CAH Taxonomy + Feedback Loop
+  (Major structural additions — build on phases 1-3 being stable)
+=============================================================================
+
+4.1  CAH on Centroids: Build a 3-Level Scientific Taxonomy
+────────────────────────────────────────────────────────────
+Impact: HIGH | Effort: HIGH
+
+Architecture:
+  Run Hierarchical Agglomerative Clustering (CAH/HAC) on cluster centroids
+  only — NEVER on raw paper embeddings. With N clusters, CAH complexity
+  is O(N^2 log N). Since N is your cluster count (likely hundreds), not
+  your paper count (potentially millions), this is fast.
+
+  Use Ward linkage — it minimizes within-cluster variance and produces the
+  most balanced, interpretable dendrograms for embedding spaces.
+
+3-Level Taxonomy Output:
+  Cut the dendrogram at 2 depth levels to produce:
+
+    L1 — Broad fields        e.g. "Life Sciences", "Computer Science"
+    L2 — Subfields           e.g. "Molecular Biology", "Machine Learning"
+    L3 — Leaf clusters       your existing HDBSCAN clusters
+                             e.g. "CRISPR Gene Editing Efficiency"
+
+  Store in a cluster_hierarchy table:
+    (cluster_id, l1_label, l2_label, l1_id, l2_id)
+
+Integration with Gemma (from step 3.1):
+  Pass the L1/L2 path as context when prompting Gemma to name a cluster:
+
+    "This cluster belongs to the field of [Life Sciences] in the
+     subfield of [Molecular Biology]. Give it a specific name that
+     distinguishes it from other clusters in this subfield."
+
+  This produces more precise and taxonomy-consistent cluster labels.
+
+Rebuild Trigger:
+  Rebuild the CAH hierarchy at the end of each HDBSCAN run.
+  It is cheap (runs only on centroids) and keeps the hierarchy in sync.
+
+Implementation:
+  from scipy.cluster.hierarchy import linkage, fcluster
+  from scipy.spatial.distance import pdist
+
+  centroids = load_all_cluster_centroids()  # shape (N, 768)
+  distances = pdist(centroids, metric="cosine")
+  Z = linkage(distances, method="ward")
+
+  # Cut at 2 levels (tune n_l1 and n_l2 to your corpus)
+  l1_labels = fcluster(Z, t=n_l1, criterion="maxclust")
+  l2_labels = fcluster(Z, t=n_l2, criterion="maxclust")
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+4.2  Build a Correction / Feedback Store
+──────────────────────────────────────────
+Impact: MEDIUM | Effort: MEDIUM
+
+Problem:
+  When users (or curators) correct a misclassification, the signal is lost.
+  The system has no mechanism to learn from its mistakes over time.
+
+Fix:
+  Add a classification_corrections table:
+    (publication_id, assigned_cluster_id, correct_cluster_id,
+     corrected_by, confidence, timestamp)
+
+  Use corrections in two ways:
+
+    (a) Immediate exemplar seeding:
+        Corrected papers are added to their correct cluster's exemplar
+        set immediately (step 3.2). This improves future assignment
+        accuracy for that cluster right away.
+
+    (b) Threshold calibration (weekly batch):
+        For each cluster, compute correction_rate = corrections / assignments
+        in the past 30 days. If correction_rate > 0.10, tighten the
+        cluster's assignment threshold by 0.02 (be more selective).
+        If correction_rate < 0.02, relax it by 0.01.
+
+  Over time this creates a supervised signal on top of the unsupervised
+  base, without requiring full retraining.
+
+
+─────────────────────────────────────────────────────────────────────────────
+
+4.3  Per-Cluster Quality Metrics
+──────────────────────────────────
+Impact: LOW-MEDIUM | Effort: LOW
+
+Track and store the following metrics per cluster after each HDBSCAN run:
+
+  - intra_cluster_mean_similarity   (tightness — from step 2.3)
+  - member_count
+  - correction_rate_30d             (from step 4.2)
+  - pending_inflow_rate             (new pending papers per day)
+  - centroid_drift                  (cosine distance, old vs new centroid)
+  - last_label_updated_at           (when Gemma last renamed this cluster)
+  - exemplar_coverage               (fraction of members that are exemplars)
+
+Interpretation guide:
+  High correction rate       → cluster boundaries are wrong, investigate
+  High centroid drift        → cluster is evolving rapidly, may need split
+  Low tightness + large size → likely a catch-all, consider forced split
+  Low pending inflow         → mature stable cluster
+  High pending inflow        → emerging topic, likely to spawn new cluster
+
+Expose via a /clusters/metrics endpoint or internal dashboard.
+
+
+=============================================================================
+  RECOMMENDED IMPLEMENTATION ORDER
+=============================================================================
+
+      Phase 1 — embedding model swap + metric unification +
+                        centroid fix (low effort, high impact, do first)
+
+      Phase 2 — stable IDs + pending pool + adaptive thresholds +
+                        trigger strategy
+
+      Phase 3 — Gemma cluster labeling + kNN exemplars +
+                        domain prior
+
+     Phase 4 — CAH hierarchy + feedback store + metrics dashboard
+
+
+=============================================================================
+  SOURCES OF EACH RECOMMENDATION
+=============================================================================
+
+  From own analysis:
+    - SPECTER2 embedding model swap (1.1)
+    - Centroid drift fix (1.3)
+    - CAH on centroids post-processing (4.1)
+    - kNN exemplar assignment (3.2)
+    - Adaptive thresholds per cluster (2.3)
+    - Feedback store (4.2)
+
+  From colleague's analysis:
+    - Cosine metric unification across HDBSCAN (1.2)
+    - Stable cluster IDs via centroid matching (2.1)
+    - Pending pool instead of hard "Others" (2.2)
+    - Domain as prior in assignment (3.3)
+    - HDBSCAN trigger strategy (2.4)
+
+  Shared / overlapping:
+    - Gemma used for cluster naming not paper tagging (3.1)
+    - Closing the gap between vector clusters and LLM categories (3.x)
+    - Quality metrics (4.3)
+
+=============================================================================

@@ -35,7 +35,7 @@ public class ClassificationServiceClient {
     private final String classificationServiceUrl;
 
     public ClassificationServiceClient(
-            @Value("${classification.service.url:http://localhost:8000}") String classificationServiceUrl) {
+            @Value("${classification.service.url}") String classificationServiceUrl) {
         this.restTemplate = new RestTemplate();
         this.classificationServiceUrl = classificationServiceUrl;
     }

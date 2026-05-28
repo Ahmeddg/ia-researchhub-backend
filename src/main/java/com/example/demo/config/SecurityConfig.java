@@ -139,6 +139,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/researcher-requests/*/approve").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/researcher-requests/*/reject").hasRole("ADMIN")
 
+                        // AI Ops - ADMIN and MODERATOR
+                        .requestMatchers("/api/ai/**").hasAnyRole("ADMIN", "MODERATOR")
+
                         // All other requests need authentication
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())

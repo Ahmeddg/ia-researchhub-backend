@@ -1,77 +1,39 @@
 """
 Clustering logic: assigns publications to clusters based on embedding similarity.
-Uses TF-IDF keyword extraction for automatic cluster label generation.
-Combines title + abstract + extracted PDF text for richer embeddings.
+Uses Gemma for cluster naming and exemplar-based kNN assignment.
+Incorporates domain as a soft prior.
 """
 
 import logging
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from app.config import settings
 from app.embedding import get_embedding
 from app.pdf_extractor import extract_text_from_pdf_url
-from app.llm import generate_categories_and_keywords, LLMClassificationResult
+from app.llm import generate_keywords_for_paper, LLMClassificationResult
 from app.db import (
     store_embedding,
-    find_nearest_cluster,
-    find_nearest_centroid_for_outlier,
-    create_cluster,
-    update_cluster_centroid,
+    get_nearest_cluster,
+    get_top_k_clusters,
+    set_publication_pending,
+    clear_publication_pending,
+    update_cluster_centroid_running_mean,
     update_publication_cluster,
+    get_cluster_exemplars,
+    get_cluster_domain_prior,
+    get_cluster_label_keywords,
 )
 
 logger = logging.getLogger(__name__)
 
-
-def generate_cluster_label(title: str, abstract_text: str, domain: str | None = None) -> str:
-    """
-    Generate a human-readable cluster label from the publication text
-    using TF-IDF keyword extraction.
-
-    Args:
-        title: Publication title.
-        abstract_text: Publication abstract.
-        domain: Optional domain name for context.
-
-    Returns:
-        A short label string like "Deep Learning in Medical Imaging".
-    """
-    combined_text = f"{title}. {abstract_text}"
-
-    try:
-        # Use TF-IDF to find the most important terms
-        vectorizer = TfidfVectorizer(
-            max_features=10,
-            stop_words="english",
-            ngram_range=(1, 2),  # Unigrams and bigrams
-            min_df=1,
-        )
-        vectorizer.fit_transform([combined_text])
-        keywords = vectorizer.get_feature_names_out()
-
-        # Build a label from the top 3 keywords
-        top_keywords = list(keywords[:3])
-        label = " & ".join(kw.title() for kw in top_keywords)
-
-        # Prepend domain if available and not already in the label
-        if domain and domain.lower() not in label.lower():
-            label = f"{domain}: {label}"
-
-        # Ensure label isn't too long
-        if len(label) > 100:
-            label = label[:97] + "..."
-
-        return label
-
-    except Exception:
-        # Fallback: use first words of the title
-        words = title.split()[:4]
-        return " ".join(words)
 
 
 def generate_batch_cluster_label(texts: list[str]) -> str:
     """
     Generate a cluster label from multiple publication texts.
     Used during re-clustering when we have all member texts.
+
 
     Args:
         texts: List of combined title+abstract texts for cluster members.
@@ -137,20 +99,91 @@ def _build_clean_text(title: str, abstract_text: str,
     return clean_text, pdf_text
 
 
+def _compute_exemplar_similarity(embedding: list[float], exemplar_publication_ids: list[int]) -> float:
+    """
+    Compute average cosine similarity to exemplars (papers in cluster).
+    
+    Args:
+        embedding: Publication embedding (L2-normalized).
+        exemplar_publication_ids: List of exemplar publication IDs.
+    
+    Returns:
+        Average similarity to exemplars.
+    """
+    if not exemplar_publication_ids:
+        return 0.0
+    
+    try:
+        from app.db import get_connection
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT embedding FROM publication_embeddings
+                    WHERE publication_id = ANY(%s);
+                """, (exemplar_publication_ids,))
+                
+                exemplar_sims = []
+                for row in cur.fetchall():
+                    emb = row[0]
+                    if hasattr(emb, 'tolist'):
+                        emb = emb.tolist()
+                    else:
+                        emb = list(emb)
+                    
+                    sim = float(cosine_similarity([embedding], [emb])[0, 0])
+                    exemplar_sims.append(sim)
+                
+                return sum(exemplar_sims) / len(exemplar_sims) if exemplar_sims else 0.0
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.warning(f"Error computing exemplar similarity: {e}")
+        return 0.0
+
+
+def _normalize_terms(items: list[str]) -> set[str]:
+    terms = set()
+    for item in items:
+        if not item:
+            continue
+        tokens = re.findall(r"[a-z0-9]+", item.lower())
+        terms.update(tokens)
+    return terms
+
+
+def _compute_explainability_score(paper_keywords: list[str], cluster_label: str | None, cluster_keywords: list[str] | None) -> float | None:
+    if not paper_keywords:
+        return None
+    cluster_terms = _normalize_terms([cluster_label or ""])
+    if cluster_keywords:
+        cluster_terms |= _normalize_terms(cluster_keywords)
+    if not cluster_terms:
+        return None
+    paper_terms = _normalize_terms(paper_keywords)
+    if not paper_terms:
+        return None
+    intersection = paper_terms & cluster_terms
+    union = paper_terms | cluster_terms
+    return float(len(intersection)) / float(len(union)) if union else None
+
+
 def assign_cluster(publication_id: int, title: str, abstract_text: str,
                    domain: str | None = None,
-                   pdf_url: str | None = None) -> tuple[int, str, float, LLMClassificationResult]:
+                   pdf_url: str | None = None) -> tuple[int, str, float, LLMClassificationResult, int | None, str | None, float | None]:
     """
-    Assign a publication to a cluster. This is the main classification entry point.
+    Assign a publication to a cluster using exemplar-based matching + domain prior.
 
     Steps:
         1. Build clean_text = title + abstract + PDF (first 2-3 pages)
         2. Generate embedding from clean_text
         3. Store embedding in publication_embeddings table
-        4. Call Gemma 3 LLM to get predicted categories and keywords
+        4. Call Gemma LLM to get predicted categories and keywords
         5. Find nearest cluster centroid (cosine similarity >= threshold)
-        6. If match: assign to existing cluster, update centroid
-        7. If no match: create new cluster with this embedding as centroid
+        6. If match: Use exemplar set for kNN second-pass verification
+        7. Apply domain boost if paper domain matches cluster domain
+        8. If high exemplar similarity: assign to cluster, update centroid
+        9. If no match: mark as pending or unconfirmed outlier
 
     Args:
         publication_id: The publication's database ID.
@@ -160,45 +193,80 @@ def assign_cluster(publication_id: int, title: str, abstract_text: str,
         pdf_url: Optional URL of the PDF for text extraction (first 2-3 pages).
 
     Returns:
-        Tuple of (cluster_id, cluster_label, confidence, LLMClassificationResult, suggested_cluster_id, suggested_cluster_label).
+        Tuple of (cluster_id, cluster_label, confidence, LLMClassificationResult,
+        suggested_cluster_id, suggested_cluster_label).
     """
     # Combine title + abstract + extracted PDF text
     clean_text, pdf_text = _build_clean_text(title, abstract_text, pdf_url)
     embedding = get_embedding(clean_text)
 
-    # Call LLM for categories and keywords
-    llm_result = generate_categories_and_keywords(title, abstract_text, pdf_text)
+    # Call LLM for keywords only (no paper-level categories)
+    llm_result = generate_keywords_for_paper(title, abstract_text, pdf_text)
 
     # Store the embedding
     store_embedding(publication_id, embedding)
 
-    # Try to find an existing cluster
-    result = find_nearest_cluster(embedding, settings.SIMILARITY_THRESHOLD)
+    # Try to find top-3 candidate clusters
+    candidates = get_top_k_clusters(embedding, k=3)
 
-    if result is not None:
-        cluster_id, cluster_label, similarity = result
+    if candidates:
+        best = None
+        best_explainability = None
+        best_suggested = None
 
-        # Assign publication to this cluster
-        update_publication_cluster(publication_id, cluster_id, cluster_label)
+        for cluster_id, cluster_label, similarity, cluster_tightness in candidates:
+            dynamic_threshold = settings.SIMILARITY_THRESHOLD
+            if cluster_tightness is not None:
+                dynamic_threshold = max(
+                    settings.MIN_ASSIGNMENT_THRESHOLD,
+                    min(settings.MAX_ASSIGNMENT_THRESHOLD, cluster_tightness * settings.DYNAMIC_THRESHOLD_MULTIPLIER),
+                )
 
-        # Recalculate cluster centroid with the new member
-        update_cluster_centroid(cluster_id)
+            exemplars = get_cluster_exemplars(cluster_id)
+            if exemplars:
+                exemplar_pub_ids = [pub_id for pub_id, _ in exemplars]
+                exemplar_similarity = _compute_exemplar_similarity(embedding, exemplar_pub_ids)
+            else:
+                exemplar_similarity = similarity
 
-        return (cluster_id, cluster_label, similarity, llm_result, None, None)
+            adjusted_similarity = exemplar_similarity
+            cluster_domain_info = get_cluster_domain_prior(cluster_id)
+            if cluster_domain_info and domain is not None:
+                cluster_domain, _ = cluster_domain_info
+                if cluster_domain and cluster_domain.lower() == domain.lower():
+                    adjusted_similarity += 0.05
 
-    else:
-        # No strict match found; try soft match for UI suggestion
-        soft_result = find_nearest_centroid_for_outlier(embedding, settings.SOFT_SIMILARITY_THRESHOLD)
-        suggested_id, suggested_label = None, None
-        
-        if soft_result is not None:
-            suggested_id, suggested_label, _ = soft_result
-            
-        # Treat as outlier since strict match failed. Let HDBSCAN create actual new clusters.
-        cluster_id = -1
-        label = "Others / Unclustered"
+            if best is None or adjusted_similarity > best["adjusted_similarity"]:
+                label, keywords = get_cluster_label_keywords(cluster_id)
+                best_explainability = _compute_explainability_score(llm_result.get("keywords", []), label, keywords)
+                best = {
+                    "cluster_id": cluster_id,
+                    "cluster_label": cluster_label,
+                    "adjusted_similarity": adjusted_similarity,
+                    "dynamic_threshold": dynamic_threshold,
+                }
+                best_suggested = (cluster_id, cluster_label, adjusted_similarity)
 
-        # Update publication with outlier status + suggestion
-        update_publication_cluster(publication_id, cluster_id, label, suggested_id, suggested_label)
+        if best:
+            if best["adjusted_similarity"] >= best["dynamic_threshold"]:
+                update_publication_cluster(publication_id, best["cluster_id"], best["cluster_label"])
+                clear_publication_pending(publication_id)
+                update_cluster_centroid_running_mean(best["cluster_id"], embedding)
+                return (best["cluster_id"], best["cluster_label"], best["adjusted_similarity"], llm_result, None, None, best_explainability)
 
-        return (cluster_id, label, 0.0, llm_result, suggested_id, suggested_label)
+            if best["adjusted_similarity"] >= settings.SOFT_SIMILARITY_THRESHOLD:
+                set_publication_pending(publication_id, suggested_cluster_id=best["cluster_id"])
+                label = "Pending / Unconfirmed"
+                update_publication_cluster(publication_id, -1, label, best["cluster_id"], best["cluster_label"])
+                return (-1, label, best["adjusted_similarity"], llm_result, best["cluster_id"], best["cluster_label"], best_explainability)
+
+            clear_publication_pending(publication_id)
+            label = "Others / Unclustered"
+            update_publication_cluster(publication_id, -1, label, None, None)
+            return (-1, label, best["adjusted_similarity"], llm_result, None, None, None)
+
+    # No clusters yet: mark as pending for the next HDBSCAN run
+    set_publication_pending(publication_id, suggested_cluster_id=None)
+    label = "Pending / Unconfirmed"
+    update_publication_cluster(publication_id, -1, label, None, None)
+    return (-1, label, 0.0, llm_result, None, None, None)
