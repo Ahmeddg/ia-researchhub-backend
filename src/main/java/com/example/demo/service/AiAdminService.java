@@ -159,6 +159,53 @@ public class AiAdminService {
         }
     }
 
+    public Map<String, Object> submitCorrection(Map<String, Object> payload) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    baseUrl + "/corrections", HttpMethod.POST, request,
+                    new ParameterizedTypeReference<>() {});
+            return resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null
+                    ? resp.getBody() : Map.of("error", "No response body");
+        } catch (RestClientException e) {
+            log.error("Failed to submit correction: {}", e.getMessage());
+            return Map.of("error", e.getMessage());
+        }
+    }
+
+    // ── Configuration ────────────────────────────────────────────────────────
+    
+    public Map<String, Object> getSystemConfig() {
+        try {
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    baseUrl + "/config", HttpMethod.GET, null,
+                    new ParameterizedTypeReference<>() {});
+            return resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null
+                    ? resp.getBody() : Collections.emptyMap();
+        } catch (RestClientException e) {
+            log.warn("Failed to fetch system config: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    public Map<String, Object> updateSystemConfig(Map<String, Object> payload) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    baseUrl + "/config", HttpMethod.PUT, request,
+                    new ParameterizedTypeReference<>() {});
+            return resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null
+                    ? resp.getBody() : Map.of("error", "No response body");
+        } catch (RestClientException e) {
+            log.error("Failed to update system config: {}", e.getMessage());
+            return Map.of("error", e.getMessage());
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private Map<String, Object> fallbackDown() {

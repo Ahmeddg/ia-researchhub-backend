@@ -96,4 +96,24 @@ public class AiController {
             @RequestParam(defaultValue = "20") int pageSize) {
         return ResponseEntity.ok(aiAdminService.getCorrections(page, pageSize));
     }
+
+    @PostMapping("/corrections")
+    @Operation(summary = "Submit a classification correction")
+    public ResponseEntity<Map<String, Object>> submitCorrection(@RequestBody Map<String, Object> payload) {
+        return ResponseEntity.ok(aiAdminService.submitCorrection(payload));
+    }
+
+    // ── Section 6: Configuration ─────────────────────────────────────────────
+
+    @GetMapping("/config")
+    @Operation(summary = "Get dynamic system configuration")
+    public ResponseEntity<Map<String, Object>> getSystemConfig() {
+        return ResponseEntity.ok(aiAdminService.getSystemConfig());
+    }
+
+    @PutMapping("/config")
+    @Operation(summary = "Update dynamic system configuration")
+    public ResponseEntity<Map<String, Object>> updateSystemConfig(@RequestBody Map<String, Object> payload) {
+        return ResponseEntity.ok(aiAdminService.updateSystemConfig(payload));
+    }
 }

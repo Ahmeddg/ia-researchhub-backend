@@ -24,6 +24,7 @@ from app.db import (
     refresh_cluster_exemplars,
     get_cluster_member_publication_ids,
     get_clustering_run_log,
+    get_recent_corrections,
 )
 from app.clustering import assign_cluster
 from app.recluster import recluster_all
@@ -49,6 +50,9 @@ from app.schemas import (
     CorrectionResponse,
     ClusterMetricsResponse,
     ClusteringRunLogEntry,
+    SystemConfig,
+    SystemConfigUpdate,
+    CorrectionEntry,
 )
 
 
@@ -226,6 +230,17 @@ async def get_cluster(cluster_id: int):
     return ClusterDetail(**detail)
 
 
+@app.get("/corrections", response_model=list[CorrectionEntry])
+async def get_corrections_list(page: int = 0, page_size: int = 20):
+    """Get recent classification corrections."""
+    try:
+        corrections = get_recent_corrections(page=page, page_size=page_size)
+        return [CorrectionEntry(**c) for c in corrections]
+    except Exception as e:
+        logger.error(f"Error fetching corrections: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/corrections", response_model=CorrectionResponse)
 async def submit_correction(request: SubmitCorrectionRequest):
     """
@@ -368,8 +383,50 @@ async def health_check():
     """Health check endpoint."""
     return HealthResponse(
         status="healthy",
-        model_loaded=is_model_loaded(),
+        embedding_model=settings.MODEL_NAME,
+        model_loaded=is_model_loaded()
     )
+
+
+@app.get("/config", response_model=SystemConfig)
+async def get_system_config():
+    """Get the current dynamic system configuration."""
+    try:
+        return SystemConfig(**settings.get_all_dynamic_configs())
+    except Exception as e:
+        logger.error(f"Error fetching config: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch config: {str(e)}")
+
+
+@app.put("/config", response_model=dict)
+async def update_system_config(update: SystemConfigUpdate):
+    """
+    Update a dynamic system configuration key.
+    Writes to the database so it persists across restarts.
+    """
+    if update.key not in settings._defaults:
+        raise HTTPException(status_code=400, detail=f"Invalid configuration key: {update.key}")
+    
+    try:
+        # Validate type
+        type_func = settings._defaults[update.key][1]
+        try:
+            type_func(update.value)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid type for {update.key}. Expected {type_func.__name__}.")
+        
+        from app.db import upsert_system_config
+        upsert_system_config(update.key, update.value)
+        
+        # Force cache refresh in this worker
+        settings._cache[update.key] = update.value
+        
+        return {"status": "success", "message": f"Updated {update.key}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating config: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────

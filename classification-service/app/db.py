@@ -1487,3 +1487,32 @@ def upsert_system_config(key: str, value: str) -> None:
             conn.commit()
     finally:
         conn.close()
+
+
+def get_recent_corrections(page: int = 0, page_size: int = 20) -> list[dict]:
+    """
+    Get recent classification corrections.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    id,
+                    publication_id,
+                    assigned_cluster_id,
+                    correct_cluster_id,
+                    corrected_by,
+                    confidence,
+                    timestamp
+                FROM classification_corrections
+                ORDER BY timestamp DESC
+                LIMIT %s OFFSET %s;
+            """, (page_size, page * page_size))
+            result = []
+            for row in cur.fetchall():
+                row["timestamp"] = row["timestamp"].isoformat()
+                result.append(row)
+            return result
+    finally:
+        conn.close()
